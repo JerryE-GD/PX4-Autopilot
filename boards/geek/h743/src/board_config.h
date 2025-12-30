@@ -54,6 +54,9 @@
  ****************************************************************************************************/
 
 
+/* CAN1引脚定义（STM32H743标准引脚） */
+#define GPIO_CAN1_TX            /* PB9 */ (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz|GPIO_PORTB|GPIO_PIN9)
+#define GPIO_CAN1_RX            /* PB8 */ (GPIO_INPUT|GPIO_PULLUP|GPIO_SPEED_50MHz|GPIO_PORTB|GPIO_PIN8)
 
 /* LEDs are driven with push open drain to support Anode to 5V or 3.3V */
 
@@ -96,8 +99,8 @@
 /* Define Battery 1 Voltage Divider and A per V
  */
 
-// #define BOARD_BATTERY1_V_DIV         (11.0f)     /* measured with the provided PM board */
-// #define BOARD_BATTERY1_A_PER_V       (40.0f)
+#define BOARD_BATTERY1_V_DIV         (11.0f)     /* 电压分压比（虚拟板用默认值） */
+#define BOARD_BATTERY1_A_PER_V       (40.0f)     /* 电流采样系数（虚拟板用默认值） */
 // #define BOARD_BATTERY2_V_DIV         (11.0f)     /* measured with the provided PM board */
 
 
