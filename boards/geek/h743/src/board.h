@@ -51,16 +51,16 @@
  * Definitions
  ****************************************************************************************************/
 
-/* Clock Configuration (STM32H743核心时钟，固定值，不用改) */
+/* Clock Configuration (STM32H743核心时钟，固定值) */
 #define STM32_HSE_FREQUENCY    25000000ul    /* 外部晶振频率 25MHz */
-#define STM32_SYSCLK_FREQUENCY 280000000ul   /* 系统时钟频率 280MHz（H743最大主频） */
+#define STM32_SYSCLK_FREQUENCY 280000000ul   /* 系统时钟频率 280MHz */
 #define STM32_HCLK_FREQUENCY   STM32_SYSCLK_FREQUENCY /* AHB总线时钟 */
 #define STM32_PCLK1_FREQUENCY  (STM32_HCLK_FREQUENCY / 2)  /* APB1时钟 140MHz */
 #define STM32_PCLK2_FREQUENCY  (STM32_HCLK_FREQUENCY / 2)  /* APB2时钟 140MHz */
 #define STM32_PCLK3_FREQUENCY  (STM32_HCLK_FREQUENCY / 2)  /* APB3时钟 140MHz */
 #define STM32_PCLK4_FREQUENCY  (STM32_HCLK_FREQUENCY / 2)  /* APB4时钟 140MHz */
 
-/* 引脚定义基础（和你board_config.h里的引脚匹配） */
+/* 引脚定义基础（和board_config.h匹配） */
 #define GPIO_INPUT              (0x00000000u)
 #define GPIO_OUTPUT             (0x00000001u)
 #define GPIO_PUSHPULL           (0x00000000u)
@@ -75,7 +75,7 @@
 #define STM32_USART4_BASE       0x40004C00ul  /* 对应RC串口ttyS4 */
 #define STM32_TIM8_BASE         0x40013400ul  /* 对应HRT高精度定时器 */
 
-/* 板级标识（自定义为geek_h743） */
+/* 板级标识（和default.px4board匹配） */
 #define BOARD_NAME              "geek_h743"
 #define BOARD_HW_VERSION        1
 
