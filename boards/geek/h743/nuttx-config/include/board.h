@@ -427,4 +427,5 @@
 # define PROBE(n,s)
 # define PROBE_MARK(n)
 
-#endif  /*__NUTTX_CONFIG_MICOAIR743_INCLUDE_BOARD_H  */
+#endif  /*__NUTTX_CONFIG_GEEK743_INCLUDE_BOARD_H  */
+
