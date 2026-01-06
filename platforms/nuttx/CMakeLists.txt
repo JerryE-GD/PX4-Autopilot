@@ -55,15 +55,15 @@ endif()
 # build NuttX
 add_subdirectory(NuttX ${PX4_BINARY_DIR}/NuttX)
 
-# check that CONFIG_ARCH_BOARD_CUSTOM_DIR is in PX4_BOARD_DIR
-if(CONFIG_ARCH_BOARD_CUSTOM_DIR_RELPATH)
-	get_filename_component(nuttx_defconfig_root "${NUTTX_DEFCONFIG}/../.." ABSOLUTE)
-	get_filename_component(nuttx_config_from_defconfig "${NUTTX_DIR}/${CONFIG_ARCH_BOARD_CUSTOM_DIR}" ABSOLUTE)
+# 强制指定geek/h743的NuttX配置路径（解决编译报错）
+set(CONFIG_ARCH_BOARD_CUSTOM_DIR "boards/geek/h743/nuttx-config")
+get_filename_component(nuttx_defconfig_root "${NUTTX_DEFCONFIG}/../.." ABSOLUTE)
+get_filename_component(nuttx_config_from_defconfig "${PX4_SOURCE_DIR}/${CONFIG_ARCH_BOARD_CUSTOM_DIR}" ABSOLUTE)
 
-	if(NOT ${nuttx_defconfig_root} MATCHES ${nuttx_config_from_defconfig})
-		message(FATAL_ERROR "NuttX custom board directory (${CONFIG_ARCH_BOARD_CUSTOM_DIR}) isn't in board directory (${PX4_BOARD_DIR})")
-	endif()
+if(NOT ${nuttx_defconfig_root} MATCHES ${nuttx_config_from_defconfig})
+	message(FATAL_ERROR "NuttX custom board directory (${CONFIG_ARCH_BOARD_CUSTOM_DIR}) isn't in board directory (${PX4_BOARD_DIR})")
 endif()
+
 
 set(nuttx_libs)
 set(SCRIPT_PREFIX)

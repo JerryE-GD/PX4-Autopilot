@@ -1,3 +1,7 @@
+# 强制指定NuttX配置路径（新增这2行！）
+CONFIG_BOARD_NUTTX_DIR="boards/geek/h743/nuttx-config"
+CONFIG_NUTTX_BOARD="geek/h743"
+
 # geek/h743 虚拟飞控板级配置（适配STM32H743，基于micoair743修改）
 CONFIG_BOARD="geek/h743"
 CONFIG_BOARD_VENDOR="geek"
