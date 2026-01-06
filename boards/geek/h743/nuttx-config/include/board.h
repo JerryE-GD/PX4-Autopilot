@@ -32,8 +32,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ************************************************************************************/
-#ifndef __NUTTX_CONFIG_MICOAIR743_INCLUDE_BOARD_H
-#define __NUTTX_CONFIG_MICOAIR743_INCLUDE_BOARD_H
+#ifndef __NUTTX_CONFIG_GEEK743_INCLUDE_BOARD_H
+#define __NUTTX_CONFIG_GEEK743_INCLUDE_BOARD_H
 
 /************************************************************************************
  * Included Files
@@ -62,8 +62,7 @@
  * So we have these clock source available within the STM32
  *
  *   HSI: 64 MHz RC factory-trimmed
- *   HSE:  8 MHz crystal for HSE
- */
+ *   HSE:  8 MHz crystal for HSE */
 
 #define STM32_BOARD_XTAL        8000000ul
 
@@ -326,6 +325,11 @@
 #define BOARD_LED2_BIT    (1 << BOARD_LED2)
 #define BOARD_LED3_BIT    (1 << BOARD_LED3)
 
+// ========== 新增内容（适配geek/h743虚拟硬件） ==========
+#define GPIO_LED_RED     (GPIO_OUTPUT | GPIO_PORT_E | GPIO_PIN_5)
+#define GPIO_LED_GREEN   (GPIO_OUTPUT | GPIO_PORT_E | GPIO_PIN_6)
+#define GPIO_LED_BLUE    (GPIO_OUTPUT | GPIO_PORT_E | GPIO_PIN_7)
+
 /* If CONFIG_ARCH_LEDS is defined, the usage by the board port is defined in
  * include/board.h and src/stm32_leds.c. The LEDs are used to encode OS-related
  * events as follows:
@@ -346,7 +350,7 @@
 #define LED_IDLE           8 /* MCU is is sleep mode     ON     OFF   OFF  */
 
 /* Thus if the Green LED is statically on, NuttX has successfully booted and
- * is, apparently, running normally.  If the Red LED is flashing at
+  is, apparently, running normally.  If the Red LED is flashing at
  * approximately 2Hz, then a fatal error has been detected and the system
  * has halted.
  */
@@ -362,8 +366,8 @@
 #define GPIO_USART3_RX   GPIO_USART3_RX_3   /* PD9  */
 #define GPIO_USART3_TX   GPIO_USART3_TX_3   /* PD8  */
 
-#define GPIO_UART4_RX    GPIO_UART4_RX_2    /* PA1  */
-#define GPIO_UART4_TX    GPIO_UART4_TX_2    /* PA0  */
+#define GPIO_UART4_RX    GPIO_UART4_RX_3    /* PB8 */
+#define GPIO_UART4_TX    GPIO_UART4_TX_3    /* PB9 */
 
 #define GPIO_USART6_RX   GPIO_USART6_RX_1   /* PC7  */
 #define GPIO_USART6_TX   GPIO_USART6_TX_1   /* PC6  */
