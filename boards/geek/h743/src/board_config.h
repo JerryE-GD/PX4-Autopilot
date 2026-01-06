@@ -39,6 +39,11 @@
 
 #pragma once
 
+// ========== 新增：保护宏 ==========
+#ifndef __GEEK743_BOARD_CONFIG_H
+#define __GEEK743_BOARD_CONFIG_H
+// ========== 新增结束 ==========
+
 /****************************************************************************************************
  * Included Files
  ****************************************************************************************************/
@@ -53,18 +58,15 @@
  * Definitions
  ****************************************************************************************************/
 
-
-
 /* LEDs are driven with push open drain to support Anode to 5V or 3.3V */
 
 #  define GPIO_nLED_RED         /* PE5   */  (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz|GPIO_OUTPUT_SET|GPIO_PORTE|GPIO_PIN5)
 #  define GPIO_nLED_GREEN       /* PE6   */  (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz|GPIO_OUTPUT_SET|GPIO_PORTE|GPIO_PIN6)
-#  define GPIO_nLED_BLUE        /* PE4   */  (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz|GPIO_OUTPUT_SET|GPIO_PORTE|GPIO_PIN4)
+#  define GPIO_nLED_BLUE        /* PE7   */  (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz|GPIO_OUTPUT_SET|GPIO_PORTE|GPIO_PIN7)  // 改PE4→PE7
 
 #  define BOARD_HAS_CONTROL_STATUS_LEDS      1
 #  define BOARD_OVERLOAD_LED     LED_RED
 #  define BOARD_ARMED_STATE_LED  LED_BLUE
-
 
 /*
  * ADC channels
@@ -82,16 +84,13 @@
 	/* PC0  */  GPIO_ADC123_INP10, \
 	/* PC1  */  GPIO_ADC123_INP11
 
-
 /* Define Channel numbers must match above GPIO pin IN(n)*/
 #define ADC_BATTERY_VOLTAGE_CHANNEL     /* PC0  */  ADC1_CH(10)
 #define ADC_BATTERY_CURRENT_CHANNEL     /* PC1  */  ADC1_CH(11)
 
-
 #define ADC_CHANNELS \
 	((1 << ADC_BATTERY_VOLTAGE_CHANNEL) | \
 	 (1 << ADC_BATTERY_CURRENT_CHANNEL))
-
 
 /* Define Battery 1 Voltage Divider and A per V
  */
@@ -100,14 +99,12 @@
 // #define BOARD_BATTERY1_A_PER_V       (40.0f)
 // #define BOARD_BATTERY2_V_DIV         (11.0f)     /* measured with the provided PM board */
 
-
 /* PWM
  */
-#define DIRECT_PWM_OUTPUT_CHANNELS   10
-#define DIRECT_INPUT_TIMER_CHANNELS  10
+#define DIRECT_PWM_OUTPUT_CHANNELS   8  // 改10→8
+#define DIRECT_INPUT_TIMER_CHANNELS  8   // 改10→8
 
 #define BOARD_HAS_PWM  DIRECT_PWM_OUTPUT_CHANNELS
-
 
 /* USB OTG FS
  *
@@ -116,14 +113,12 @@
 
 #define GPIO_OTGFS_VBUS         /* PA8 */ (GPIO_INPUT|GPIO_PULLDOWN|GPIO_SPEED_100MHz|GPIO_PORTA|GPIO_PIN8)
 
-
 /* High-resolution timer */
 #define HRT_TIMER               2  /* use timer8 for the HRT */
 #define HRT_TIMER_CHANNEL       1  /* use capture/compare channel 3 */
 
-
 /* RC Serial port */
-#define RC_SERIAL_PORT          "/dev/ttyS4"
+#define RC_SERIAL_PORT          "/dev/ttyS4"  /* UART4: PB8/PB9，适配QEMU调试 */  // 新增注释
 #define BOARD_SUPPORTS_RC_SERIAL_PORT_OUTPUT
 
 /* SD Card */
@@ -144,9 +139,7 @@
 
 #define BOARD_ENABLE_CONSOLE_BUFFER
 
-
 #define BOARD_NUM_IO_TIMERS 4
-
 
 __BEGIN_DECLS
 
@@ -192,4 +185,9 @@ extern void board_peripheral_reset(int ms);
 
 #endif /* __ASSEMBLY__ */
 
+// ========== 新增：保护宏收尾 ==========
+#endif /* __GEEK743_BOARD_CONFIG_H */
+// ========== 新增结束 ==========
+
 __END_DECLS
+
