@@ -185,9 +185,7 @@ extern void board_peripheral_reset(int ms);
 
 #endif /* __ASSEMBLY__ */
 
+__END_DECLS  // 调整到保护宏内
 // ========== 新增：保护宏收尾 ==========
 #endif /* __GEEK743_BOARD_CONFIG_H */
 // ========== 新增结束 ==========
-
-__END_DECLS
-
