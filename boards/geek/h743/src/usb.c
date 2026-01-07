@@ -42,15 +42,13 @@
 #include <nuttx/usb/usbdev_trace.h>
 #include <stm32_otg.h>
 #include <debug.h>
-#include <syslog.h>  // 仅新增：兼容日志输出（原版uinfo依赖）
-#include <stdbool.h> // 仅新增：布尔类型定义
-#include <stdint.h>  // 仅新增：整型类型定义
+#include <stdbool.h>
+#include <stdint.h>
 
 /************************************************************************************
- * Private Definitions (新增：Bootloader 专用，不影响原版逻辑)
+ * Private Definitions (新增：Bootloader 专用，兼容PX4原生逻辑)
  ************************************************************************************/
-// USB设备句柄（复用PX4原生驱动）
-static FAR struct usbdev_s *g_usb_dev = NULL;
+static bool g_usb_initialized = false; // USB初始化状态
 
 /************************************************************************************
  * Name: stm32_usbinitialize
@@ -87,7 +85,7 @@ __EXPORT void stm32_usbsuspend(FAR struct usbdev_s *dev, bool resume)
 }
 
 /************************************************************************************
- * 新增：Bootloader 专用 USB 操作函数（最小化修改，兼容原版）
+ * 新增：Bootloader 专用 USB 操作函数（完全适配PX4/STM32原生接口）
  ************************************************************************************/
 
 /**
@@ -97,7 +95,7 @@ __EXPORT void stm32_usbsuspend(FAR struct usbdev_s *dev, bool resume)
 __EXPORT uint8_t USB_Connect_Detect(void)
 {
 #ifdef CONFIG_STM32H7_OTGFS
-    // 使用PX4原生VBUS GPIO检测（最可靠，复用原版配置）
+    // 使用PX4原生VBUS GPIO检测（复用原版配置）
     return stm32_gpioread(GPIO_OTGFS_VBUS) ? 1 : 0;
 #else
     // 无OTG FS配置时，默认返回未连接
@@ -106,48 +104,41 @@ __EXPORT uint8_t USB_Connect_Detect(void)
 }
 
 /**
- * @brief Bootloader专用：初始化USB设备（复用PX4原生驱动）
+ * @brief Bootloader专用：初始化USB硬件（仅调用原版函数，无驱动初始化）
  * @return 0: 成功  -1: 失败
  */
 __EXPORT int USB_Init_Device(void)
 {
     // 避免重复初始化
-    if (g_usb_dev != NULL) {
+    if (g_usb_initialized) {
         return 0;
     }
 
-    // 先初始化USB GPIO（调用原版函数）
+    // 调用原版USB GPIO初始化函数（唯一正确的初始化方式）
     stm32_usbinitialize();
-
-    // 获取USB设备实例（PX4原生接口）
-    g_usb_dev = usbdev_initialize(0); // 0: USB设备minor号（复用原生配置）
-    if (g_usb_dev == NULL) {
-        syslog(LOG_ERR, "[boot] USB device initialize failed\n");
-        return -1;
-    }
+    g_usb_initialized = true;
 
     return 0;
 }
 
 /**
- * @brief Bootloader专用：从USB接收固件数据（简化版，适配Bootloader）
+ * @brief Bootloader专用：USB数据接收占位函数（简化版，无驱动依赖）
  * @param buf 接收缓冲区
  * @param len 期望接收长度
- * @return 实际接收字节数（0表示失败/无数据）
+ * @return 实际接收字节数（Bootloader阶段暂返回0，后续按需扩展）
  */
 __EXPORT uint32_t USB_Recv_Firmware(uint8_t *buf, uint32_t len)
 {
     // 入参合法性检查
-    if (buf == NULL || len == 0 || g_usb_dev == NULL) {
+    if (buf == NULL || len == 0) {
         return 0;
     }
 
     // 检测USB是否连接
-    if (USB_Connect_Detect() == 0) {
+    if (USB_Connect_Detect() == 0 || !g_usb_initialized) {
         return 0;
     }
 
-    // 使用PX4原生USB接收接口（非阻塞读取）
-    ssize_t recv_len = usbdev_recv(g_usb_dev, buf, len, 0);
-    return (recv_len > 0) ? (uint32_t)recv_len : 0;
+    // Bootloader阶段简化实现：暂返回0（后续可基于PX4 CDC-ACM扩展）
+    return 0;
 }
