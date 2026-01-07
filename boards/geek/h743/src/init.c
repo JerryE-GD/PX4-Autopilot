@@ -40,6 +40,7 @@
 #include "board_config.h"
 #include "hw_config.h"  // 新增：引入Bootloader配置头文件（你已改好的hw_config.h）
 #include <stdint.h>     // 新增：兼容串口输出函数的类型定义
+#include "stm32h7xx.h"  // 仅新增这一行！解决RCC/USART1寄存器未定义
 #include <syslog.h>
 
 #include <nuttx/config.h>
