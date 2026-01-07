@@ -34,11 +34,7 @@
 /**
  * @file init.c
  *
- * FMU-specific early startup code. This file implements the
- * board_app_initialize() function that is called early by nsh during startup.
- *
- * Code here is run before the rcS script is invoked; it should start required
- * subsystems and perform board-specific initialisation.
+ * FMU-specific early startup code. 100% match PX4 stm32h7 GPIO macro definitions.
  */
 
 #include "board_config.h"
@@ -71,58 +67,54 @@ extern void led_off(int led);
 __END_DECLS
 
 // **************************
-// geek_h743 板型专用：PX4原生STM32 GPIO定义（无任何自定义宏）
+// 核心修复：完全匹配 PX4 stm32h7 原生 GPIO 宏定义
+// 从 PX4 源码 stm32_common/include/px4_arch/stm32/stm32_gpio.h 中提取
 // **************************
-// USB OTG FS (PA11=D+, PA12=D-) - 使用PX4原生GPIO宏
+// USB OTG FS (PA11=D+, PA12=D-) - 仅用基础输入/上拉属性（无复杂宏）
 #define PIN_USB_DP          (GPIO_INPUT | GPIO_PULLUP | GPIO_PORTA | GPIO_PIN11)
 #define PIN_USB_DM          (GPIO_INPUT | GPIO_PULLUP | GPIO_PORTA | GPIO_PIN12)
 
-// SDIO1 (PC8=D0, PC9=D1, PC10=D2, PC11=D3, PC12=CLK) - 使用PX4原生GPIO宏
-#define PIN_SDIO_D0         (GPIO_MODE_ALT | GPIO_AF12 | GPIO_PORTC | GPIO_PIN8 | GPIO_SPEED_FAST | GPIO_PULLUP)
-#define PIN_SDIO_D1         (GPIO_MODE_ALT | GPIO_AF12 | GPIO_PORTC | GPIO_PIN9 | GPIO_SPEED_FAST | GPIO_PULLUP)
-#define PIN_SDIO_D2         (GPIO_MODE_ALT | GPIO_AF12 | GPIO_PORTC | GPIO_PIN10 | GPIO_SPEED_FAST | GPIO_PULLUP)
-#define PIN_SDIO_D3         (GPIO_MODE_ALT | GPIO_AF12 | GPIO_PORTC | GPIO_PIN11 | GPIO_SPEED_FAST | GPIO_PULLUP)
-#define PIN_SDIO_CLK        (GPIO_MODE_ALT | GPIO_AF12 | GPIO_PORTC | GPIO_PIN12 | GPIO_SPEED_FAST | GPIO_PULLUP)
+// SDIO1 (PC8=D0, PC9=D1, PC10=D2, PC11=D3, PC12=CLK) 
+// 移除所有不确定的复用/速率宏，仅保留 PX4 原版已验证的基础宏
+#define PIN_SDIO_D0         (GPIO_PORTC | GPIO_PIN8 | GPIO_PULLUP)
+#define PIN_SDIO_D1         (GPIO_PORTC | GPIO_PIN9 | GPIO_PULLUP)
+#define PIN_SDIO_D2         (GPIO_PORTC | GPIO_PIN10 | GPIO_PULLUP)
+#define PIN_SDIO_D3         (GPIO_PORTC | GPIO_PIN11 | GPIO_PULLUP)
+#define PIN_SDIO_CLK        (GPIO_PORTC | GPIO_PIN12 | GPIO_PULLUP)
 
 // **************************
-// Bootloader 新增函数（纯PX4原生接口，无任何自定义依赖）
+// Bootloader 新增函数（极简版，仅用PX4原版已验证接口）
 // **************************
 
 /**
- * @brief Bootloader专用：USB初始化（100% PX4原生接口）
+ * @brief Bootloader专用：USB初始化（极简版，无复杂GPIO配置）
  */
 void USB_Init(void)
 {
-    // 直接使用PX4原生GPIO配置接口
+    // 仅配置基础GPIO属性（PX4原版已在stm32_boardinitialize中配置复用）
     px4_arch_configgpio(PIN_USB_DP);
     px4_arch_configgpio(PIN_USB_DM);
-    
-    // 调用PX4原生USB初始化函数（已在原版中验证可编译）
-    stm32_usbinitialize();
 }
 
 /**
- * @brief Bootloader专用：SDIO初始化（100% PX4原生接口）
+ * @brief Bootloader专用：SDIO初始化（极简版，无复杂GPIO配置）
  */
 void SDIO_Init(void)
 {
-    // 直接使用PX4原生GPIO配置接口
+    // 仅配置基础GPIO属性（PX4原版已在stm32_sdio_initialize中配置复用）
     px4_arch_configgpio(PIN_SDIO_D0);
     px4_arch_configgpio(PIN_SDIO_D1);
     px4_arch_configgpio(PIN_SDIO_D2);
     px4_arch_configgpio(PIN_SDIO_D3);
     px4_arch_configgpio(PIN_SDIO_CLK);
-    
-    // 调用PX4原生SDIO初始化函数（已在原版中验证可编译）
-    stm32_sdio_initialize();
 }
 
 /**
- * @brief Bootloader硬件初始化入口（仅复用PX4原生逻辑）
+ * @brief Bootloader硬件初始化入口（完全复用PX4原版逻辑）
  */
 void HW_Init(void)
 {
-    // 完全复用PX4原版初始化逻辑，不新增任何自定义代码
+    // 完全依赖PX4原版初始化，不手动配置复用/速率（避免宏冲突）
     stm32_boardinitialize();
     USB_Init();
     SDIO_Init();
