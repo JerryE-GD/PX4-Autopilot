@@ -33,6 +33,9 @@
 if("${PX4_BOARD_LABEL}" STREQUAL  "bootloader")
 	add_library(drivers_board
 		bootloader_main.c
+		init.c          # 新增：Bootloader编译时包含init.c
+		flash.c         # 新增：Bootloader编译时包含flash.c
+		sdio.c          # 新增：Bootloader编译时包含sdio.c（可选，若需要SD卡检测）
 		usb.c
 	)
 	target_link_libraries(drivers_board
