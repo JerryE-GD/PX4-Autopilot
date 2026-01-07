@@ -112,4 +112,19 @@
 
 #ifndef BOOT_DEVICES_FILTER_ONUSB
 #  define BOOT_DEVICES_FILTER_ONUSB USB0_DEV|SERIAL0_DEV|SERIAL1_DEV
+// ========== 新增：Bootloader硬件初始化函数声明（兼容原有配置，不冲突） ==========
+// 系统时钟/串口/GPIO初始化总入口
+void hw_config_init(void);
+// 调试串口输出函数（用于Bootloader日志）
+void usart_puts(const char *str);
+// 串口初始化函数（复用原有USART配置）
+void usart_initialize(void);
+
+// ========== 新增：调试串口基础配置（复用你已定义的INTERFACE_USART_CONFIG） ==========
+#define DEBUG_USART_BAUDRATE 115200
+#define DEBUG_USART          USART1
+#define DEBUG_USART_TX_PIN   GPIO_PIN_9  // PA9（复用原生串口引脚，不新增GPIO）
+#define DEBUG_USART_RX_PIN   GPIO_PIN_10 // PA10
+#define DEBUG_USART_GPIO_PORT GPIOA
+
 #endif
