@@ -38,10 +38,15 @@
  */
 
 #include "board_config.h"
+#include "hw_config.h"  // 新增：引入Bootloader硬件配置
+#include "stm32h7xx_hal.h"  // 新增：HAL库用于USB状态检测
 #include <nuttx/usb/usbdev.h>
 #include <nuttx/usb/usbdev_trace.h>
 #include <stm32_otg.h>
 #include <debug.h>
+
+// 新增：全局USB OTG句柄（供检测函数使用）
+extern PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
 /************************************************************************************
  * Name: stm32_usbinitialize
@@ -60,6 +65,9 @@ __EXPORT void stm32_usbinitialize(void)
 #ifdef CONFIG_STM32H7_OTGFS
 	stm32_configgpio(GPIO_OTGFS_VBUS);
 #endif
+
+	// 新增：初始化USB OTG外设（供Bootloader检测使用）
+	HW_Init(); // 调用init.c中的硬件初始化函数
 }
 
 /************************************************************************************
@@ -75,4 +83,48 @@ __EXPORT void stm32_usbinitialize(void)
 __EXPORT void stm32_usbsuspend(FAR struct usbdev_s *dev, bool resume)
 {
 	uinfo("resume: %d\n", resume);
+}
+
+/****************************************************************************
+ * 新增：Bootloader专用USB检测&固件接收函数
+ ****************************************************************************/
+
+/**
+ * @brief Bootloader专用：检测USB是否连接到主机
+ * @return 1: USB已连接并枚举  0: USB未连接
+ */
+uint8_t USB_Device_Detect(void)
+{
+    // 基于STM32 HAL库检测USB OTG状态
+    if (&hpcd_USB_OTG_FS == NULL) {
+        return 0;
+    }
+
+    // PCD_STATE_CONFIGURED：USB已与主机完成枚举和配置
+    if (HAL_PCD_GetState(&hpcd_USB_OTG_FS) == PCD_STATE_CONFIGURED) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+/**
+ * @brief Bootloader专用：从USB接收固件数据（预留接口）
+ * @param buf  数据缓冲区
+ * @param len  期望接收长度
+ * @return 实际接收字节数（当前预留为0，后续扩展）
+ */
+uint32_t USB_Receive_Firmware(uint8_t *buf, uint32_t len)
+{
+    // 1. 检测USB连接状态
+    if (USB_Device_Detect() == 0 || buf == NULL || len == 0) {
+        return 0;
+    }
+
+    // 2. 预留CDC-ACM接收逻辑（后续对接PX4 CDC-ACM驱动）
+    UNUSED(buf);
+    UNUSED(len);
+
+    // 暂时返回0，后续补全实际接收代码
+    return 0;
 }
