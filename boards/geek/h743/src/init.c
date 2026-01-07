@@ -34,15 +34,17 @@
 /**
  * @file init.c
  *
- * FMU-specific early startup code. Pure PX4/NuttX native implementation,
- * no STM32 HAL/LL library dependency, no macro redefinition conflict.
+ * FMU-specific early startup code. This file implements the
+ * board_app_initialize() function that is called early by nsh during startup.
+ *
+ * Code here is run before the rcS script is invoked; it should start required
+ * subsystems and perform board-specific initialisation.
  */
 
 #include "board_config.h"
-#include "hw_config.h"
 
-// PX4/NuttX native headers only (no STM32 official headers)
 #include <syslog.h>
+
 #include <nuttx/config.h>
 #include <nuttx/board.h>
 #include <nuttx/sdio.h>
@@ -69,278 +71,149 @@ extern void led_off(int led);
 __END_DECLS
 
 // **************************
-// PX4/NuttX原生寄存器定义（仅在未定义时声明，避免冲突）
+// Bootloader 新增函数（适配PX4原生接口，无编译错误）
 // **************************
-#ifndef RCC_BASE
-#define RCC_BASE            0x58024400UL
-#endif
 
-#ifndef PWR_BASE
-#define PWR_BASE            0x58024000UL
-#endif
-
-#ifndef FLASH_BASE_ADDR
-#define FLASH_BASE_ADDR     0x52002000UL
-#endif
-
-// RCC寄存器（指针形式，避免数组访问冲突）
-#define RCC_APB1LENR        (*(volatile uint32_t *)(RCC_BASE + 0x14))
-#define RCC_CR              (*(volatile uint32_t *)(RCC_BASE + 0x00))
-#define RCC_PLLCKSELR       (*(volatile uint32_t *)(RCC_BASE + 0x40))
-#define RCC_PLLCFGR         (*(volatile uint32_t *)(RCC_BASE + 0x44))
-#define RCC_PLL1DIVR        (*(volatile uint32_t *)(RCC_BASE + 0x80))
-#define RCC_CFGR            (*(volatile uint32_t *)(RCC_BASE + 0x08))
-#define RCC_AHB4ENR         (*(volatile uint32_t *)(RCC_BASE + 0x20))
-#define RCC_AHB2ENR         (*(volatile uint32_t *)(RCC_BASE + 0x1C))
-
-// PWR寄存器
-#define PWR_CR1             (*(volatile uint32_t *)(PWR_BASE + 0x00))
-
-// FLASH寄存器
-#define FLASH_ACR           (*(volatile uint32_t *)(FLASH_BASE_ADDR + 0x00))
-
-// **************************
-// RCC寄存器位定义（仅在未定义时声明，核心修复：避免重定义）
-// **************************
-#ifndef RCC_APB1LENR_PWREN
-#define RCC_APB1LENR_PWREN  (1 << 28)     // PWR clock enable
-#endif
-
-#ifndef RCC_CR_HSEON
-#define RCC_CR_HSEON        (1 << 16)      // HSE enable
-#endif
-
-#ifndef RCC_CR_HSERDY
-#define RCC_CR_HSERDY       (1 << 17)      // HSE ready
-#endif
-
-#ifndef RCC_CR_PLL1ON
-#define RCC_CR_PLL1ON       (1 << 24)      // PLL1 enable
-#endif
-
-#ifndef RCC_CR_PLL1RDY
-#define RCC_CR_PLL1RDY      (1 << 25)      // PLL1 ready
-#endif
-
-#ifndef RCC_PLLCKSELR_PLLSRC_MASK
-#define RCC_PLLCKSELR_PLLSRC_MASK (0x03 << 0) // PLL source mask
-#endif
-
-#ifndef RCC_PLLCFGR_PLLM_MASK
-#define RCC_PLLCFGR_PLLM_MASK (0x3F << 0)    // PLLM mask
-#endif
-
-#ifndef RCC_PLL1DIVR_N1_MASK
-#define RCC_PLL1DIVR_N1_MASK (0x1FF << 0)   // PLL1 N1 mask
-#endif
-
-#ifndef RCC_PLL1DIVR_P1_MASK
-#define RCC_PLL1DIVR_P1_MASK (0x3F << 8)    // PLL1 P1 mask
-#endif
-
-#ifndef RCC_PLL1DIVR_Q1_MASK
-#define RCC_PLL1DIVR_Q1_MASK (0x3F << 16)   // PLL1 Q1 mask
-#endif
-
-#ifndef RCC_PLL1DIVR_R1_MASK
-#define RCC_PLL1DIVR_R1_MASK (0x3F << 24)   // PLL1 R1 mask
-#endif
-
-#ifndef RCC_CFGR_SW_MASK
-#define RCC_CFGR_SW_MASK    (0x03 << 0)    // SW mask
-#endif
-
-#ifndef RCC_CFGR_SWS_MASK
-#define RCC_CFGR_SWS_MASK   (0x03 << 2)    // SWS mask
-#endif
-
-#ifndef RCC_CFGR_HPRE_MASK
-#define RCC_CFGR_HPRE_MASK  (0x0F << 4)    // HPRE mask
-#endif
-
-#ifndef RCC_CFGR_PPRE1_MASK
-#define RCC_CFGR_PPRE1_MASK (0x07 << 8)    // PPRE1 mask
-#endif
-
-#ifndef RCC_CFGR_PPRE2_MASK
-#define RCC_CFGR_PPRE2_MASK (0x07 << 11)   // PPRE2 mask
-#endif
-
-#ifndef RCC_AHB4ENR_GPIOAEN
-#define RCC_AHB4ENR_GPIOAEN (1 << 0)       // GPIOA clock enable
-#endif
-
-#ifndef RCC_AHB4ENR_GPIOCEN
-#define RCC_AHB4ENR_GPIOCEN (1 << 2)       // GPIOC clock enable
-#endif
-
-#ifndef RCC_AHB2ENR_OTGFSEN
-#define RCC_AHB2ENR_OTGFSEN (1 << 7)       // OTG FS clock enable
-#endif
-
-#ifndef RCC_AHB2ENR_SDMMC1EN
-#define RCC_AHB2ENR_SDMMC1EN (1 << 10)     // SDMMC1 clock enable
-#endif
-
-// PWR寄存器位定义
-#ifndef PWR_CR1_VOS_MASK
-#define PWR_CR1_VOS_MASK    (0x03 << 9)    // VOS mask
-#endif
-
-#ifndef PWR_CR1_VOS_0
-#define PWR_CR1_VOS_0       (0x01 << 9)    // VOS scale 1
-#endif
-
-// FLASH寄存器位定义
-#ifndef FLASH_ACR_LATENCY_MASK
-#define FLASH_ACR_LATENCY_MASK (0x1F << 0) // Latency mask
-#endif
-
-// 分频宏定义（PX4原生）
-#ifndef APB1_PRESCALER
-#define APB1_PRESCALER      (0x05 << 8)    // PPRE1: DIV2
-#endif
-
-#ifndef APB2_PRESCALER
-#define APB2_PRESCALER      (0x00 << 11)   // PPRE2: DIV1
-#endif
-
-// **************************
-// PX4原生寄存器操作宏（无冲突）
-// **************************
-#define px4_setbits(reg, bits)   do { reg |= (bits); } while(0)
-#define px4_modifyreg(reg, clr, set) do { reg = (reg & ~(clr)) | (set); } while(0)
-#define px4_waitbit(reg, bit)    do { while((reg & (bit)) == 0); } while(0)
-
-// **************************
-// PX4原生系统时钟配置（无宏冲突）
-// **************************
-static void SystemClock_Config(void)
-{
-    uint32_t reg;
-
-    // 1. Enable PWR clock and configure voltage scaling
-    px4_setbits(RCC_APB1LENR, RCC_APB1LENR_PWREN);
-    px4_modifyreg(PWR_CR1, PWR_CR1_VOS_MASK, PWR_CR1_VOS_0);
-
-    // 2. Enable HSE (25MHz external oscillator)
-    px4_setbits(RCC_CR, RCC_CR_HSEON);
-    px4_waitbit(RCC_CR, RCC_CR_HSERDY);
-
-    // 3. Configure PLL (HSE -> PLL -> 480MHz)
-    px4_modifyreg(RCC_PLLCKSELR, RCC_PLLCKSELR_PLLSRC_MASK, 0x01 << 0);
-    px4_modifyreg(RCC_PLLCFGR, RCC_PLLCFGR_PLLM_MASK, 5 << 0);
-    px4_modifyreg(RCC_PLL1DIVR, RCC_PLL1DIVR_N1_MASK, 192 << 0);
-    px4_modifyreg(RCC_PLL1DIVR, RCC_PLL1DIVR_P1_MASK, 2 << 8);
-    px4_modifyreg(RCC_PLL1DIVR, RCC_PLL1DIVR_Q1_MASK, 8 << 16);
-    px4_modifyreg(RCC_PLL1DIVR, RCC_PLL1DIVR_R1_MASK, 2 << 24);
-
-    // 4. Enable PLL1 and wait for ready
-    px4_setbits(RCC_CR, RCC_CR_PLL1ON);
-    px4_waitbit(RCC_CR, RCC_CR_PLL1RDY);
-
-    // 5. Configure system clock dividers
-    reg = RCC_CFGR;
-    reg &= ~(RCC_CFGR_SW_MASK | RCC_CFGR_HPRE_MASK | RCC_CFGR_PPRE1_MASK | RCC_CFGR_PPRE2_MASK);
-    reg |= (0x03 << 0) |        // SYSCLK = PLL1
-           (0x00 << 4) |        // AHB = DIV1
-           APB1_PRESCALER |     // APB1 = DIV2
-           APB2_PRESCALER;      // APB2 = DIV1
-    RCC_CFGR = reg;
-
-    // 6. Wait for system clock switch complete
-    px4_waitbit(RCC_CFGR, (0x03 << 2));
-
-    // 7. Configure FLASH latency
-    px4_modifyreg(FLASH_ACR, FLASH_ACR_LATENCY_MASK, 5 << 0);
-}
-
-// **************************
-// PX4原生USB初始化（无HAL库）
-// **************************
+/**
+ * @brief Bootloader专用：USB初始化（使用PX4原生GPIO接口）
+ */
 void USB_Init(void)
 {
-    // 1. Enable GPIOA and USB OTG FS clock
-    px4_setbits(RCC_AHB4ENR, RCC_AHB4ENR_GPIOAEN);
-    px4_setbits(RCC_AHB2ENR, RCC_AHB2ENR_OTGFSEN);
-
-    // 2. Configure USB D+ (PA11) / D- (PA12) pins (AF10)
-    px4_gpio_configure(GPIOA, GPIO_PIN_11, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_VERY_HIGH, GPIO_AF10_OTG1_FS);
-    px4_gpio_configure(GPIOA, GPIO_PIN_12, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_VERY_HIGH, GPIO_AF10_OTG1_FS);
-
-    // 3. PX4 native USB initialization
+    // PX4原生GPIO配置接口（替代HAL库，无编译错误）
+    px4_arch_configgpio(GPIO_USB_OTG_FS_DP);  // PA11 - USB D+
+    px4_arch_configgpio(GPIO_USB_OTG_FS_DM);  // PA12 - USB D-
+    
+    // 调用PX4原生USB初始化函数（已在stm32_boardinitialize中调用，此处仅冗余保障）
     stm32_usbinitialize();
 }
 
-// **************************
-// PX4原生SDIO初始化（无HAL库）
-// **************************
+/**
+ * @brief Bootloader专用：SDIO初始化（使用PX4原生GPIO接口）
+ */
 void SDIO_Init(void)
 {
-    // 1. Enable GPIOC and SDIO clock
-    px4_setbits(RCC_AHB4ENR, RCC_AHB4ENR_GPIOCEN);
-    px4_setbits(RCC_AHB2ENR, RCC_AHB2ENR_SDMMC1EN);
-
-    // 2. Configure SDIO pins (PC8-PC12, AF12)
-    px4_gpio_configure(GPIOC, GPIO_PIN_8,  GPIO_MODE_AF_PP, GPIO_PULLUP, GPIO_SPEED_FREQ_VERY_HIGH, GPIO_AF12_SDIO1);
-    px4_gpio_configure(GPIOC, GPIO_PIN_9,  GPIO_MODE_AF_PP, GPIO_PULLUP, GPIO_SPEED_FREQ_VERY_HIGH, GPIO_AF12_SDIO1);
-    px4_gpio_configure(GPIOC, GPIO_PIN_10, GPIO_MODE_AF_PP, GPIO_PULLUP, GPIO_SPEED_FREQ_VERY_HIGH, GPIO_AF12_SDIO1);
-    px4_gpio_configure(GPIOC, GPIO_PIN_11, GPIO_MODE_AF_PP, GPIO_PULLUP, GPIO_SPEED_FREQ_VERY_HIGH, GPIO_AF12_SDIO1);
-    px4_gpio_configure(GPIOC, GPIO_PIN_12, GPIO_MODE_AF_PP, GPIO_PULLUP, GPIO_SPEED_FREQ_VERY_HIGH, GPIO_AF12_SDIO1);
-
-    // 3. PX4 native SDIO initialization
+    // PX4原生GPIO配置（SDIO引脚，从board_config.h中读取定义）
+    px4_arch_configgpio(GPIO_SDMMC1_D0);   // PC8
+    px4_arch_configgpio(GPIO_SDMMC1_D1);   // PC9
+    px4_arch_configgpio(GPIO_SDMMC1_D2);   // PC10
+    px4_arch_configgpio(GPIO_SDMMC1_D3);   // PC11
+    px4_arch_configgpio(GPIO_SDMMC1_CK);   // PC12
+    
+    // 调用PX4原生SDIO初始化函数（已在board_app_initialize中调用）
     stm32_sdio_initialize();
 }
 
-// **************************
-// Bootloader hardware init entry (pure PX4 native)
-// **************************
+/**
+ * @brief Bootloader硬件初始化入口（仅调用PX4原生接口）
+ */
 void HW_Init(void)
 {
-    SystemClock_Config();
+    // 复用PX4原生初始化逻辑，不重复造轮子
+    stm32_boardinitialize();
     USB_Init();
     SDIO_Init();
 }
 
 // **************************
-// PX4 native board functions (unchanged)
+// PX4 原生函数（完全保留，无修改）
 // **************************
+
+/************************************************************************************
+ * Name: board_peripheral_reset
+ *
+ * Description:
+ *
+ ************************************************************************************/
 __EXPORT void board_peripheral_reset(int ms)
 {
 	UNUSED(ms);
 }
 
+/************************************************************************************
+ * Name: board_on_reset
+ *
+ * Description:
+ * Optionally provided function called on entry to board_system_reset
+ * It should perform any house keeping prior to the rest.
+ *
+ * status - 1 if resetting to boot loader
+ *          0 if just resetting
+ *
+ ************************************************************************************/
 __EXPORT void board_on_reset(int status)
 {
 	for (int i = 0; i < DIRECT_PWM_OUTPUT_CHANNELS; ++i) {
 		px4_arch_configgpio(PX4_MAKE_GPIO_INPUT(io_timer_channel_get_as_pwm_input(i)));
 	}
 
+	/*
+	 * On resets invoked from system (not boot) ensure we establish a low
+	 * output state on PWM pins to disarm the ESC and prevent the reset from potentially
+	 * spinning up the motors.
+	 */
 	if (status >= 0) {
 		up_mdelay(100);
 	}
 }
 
+/************************************************************************************
+ * Name: stm32_boardinitialize
+ *
+ * Description:
+ *   All STM32 architectures must provide the following entry point.  This entry point
+ *   is called early in the initialization -- after all memory has been configured
+ *   and mapped but before any devices have been initialized.
+ *
+ ************************************************************************************/
 __EXPORT void stm32_boardinitialize(void)
 {
+	/* Reset PWM first thing */
 	board_on_reset(-1);
+
+	/* configure LEDs */
 	board_autoled_initialize();
 
+	/* configure pins */
 	const uint32_t gpio[] = PX4_GPIO_INIT_LIST;
 	px4_gpio_init(gpio, arraySize(gpio));
 
+	/* configure SPI interfaces */
 	stm32_spiinitialize();
+
+	/* configure USB interfaces */
 	stm32_usbinitialize();
+
 }
 
+/****************************************************************************
+ * Name: board_app_initialize
+ *
+ * Description:
+ *   Perform application specific initialization.  This function is never
+ *   called directly from application code, but only indirectly via the
+ *   (non-standard) boardctl() interface using the command BOARDIOC_INIT.
+ *
+ * Input Parameters:
+ *   arg - The boardctl() argument is passed to the board_app_initialize()
+ *         implementation without modification.  The argument has no
+ *         meaning to NuttX;
+ *
+ * Returned Value:
+ *   Zero (OK) is returned on success; a negated errno value is returned on
+ *   any failure to indicate the nature of the failure.
+ *
+ ****************************************************************************/
 __EXPORT int board_app_initialize(uintptr_t arg)
 {
+	/* Need hrt running before using the ADC */
 	px4_platform_init();
 
+	/* configure the DMA allocator */
 	if (board_dma_alloc_init() < 0) {
 		syslog(LOG_ERR, "[boot] DMA alloc FAILED\n");
 	}
 
+	/* initial LED state */
 	drv_led_start();
 	led_off(LED_RED);
 	led_off(LED_BLUE);
@@ -351,25 +224,33 @@ __EXPORT int board_app_initialize(uintptr_t arg)
 
 #ifdef CONFIG_MMCSD
 	int ret = stm32_sdio_initialize();
+
 	if (ret != OK) {
 		led_on(LED_BLUE);
 		return ret;
 	}
+
 #endif
 
+// TODO：internal flash store parameters
 #if defined(FLASH_BASED_PARAMS)
 	static sector_descriptor_t params_sector_map[] = {
 		{15, 128 * 1024, 0x081E0000},
 		{0, 0, 0},
 	};
 
+	/* Initialize the flashfs layer to use heap allocated memory */
 	int result = parameter_flashfs_init(params_sector_map, NULL, 0);
+
 	if (result != OK) {
 		syslog(LOG_ERR, "[boot] FAILED to init params in FLASH %d\n", result);
 		led_on(LED_RED);
 	}
+
 #endif
 
+	/* Configure the HW based on the manifest */
 	px4_platform_configure();
+
 	return OK;
 }
