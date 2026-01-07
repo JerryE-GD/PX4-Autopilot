@@ -11,6 +11,13 @@
  */
 
 #include "hw_config.h"
+#include <stdio.h>   // 新增：支持printf
+#include <stdbool.h> // 新增：支持bool类型
+
+// 模拟FLASH操作状态（供调试查看）
+static bool flash_erased = false;
+static bool firmware_written = false;
+
 
 // 模拟FLASH操作状态（供调试查看）
 static bool flash_erased = false;
