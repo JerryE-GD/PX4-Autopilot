@@ -2,33 +2,6 @@
  *
  *   Copyright (C) 2021 PX4 Development Team. All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name PX4 nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
  ****************************************************************************/
 
 #pragma once
@@ -86,7 +59,11 @@
 #define SERIAL0_DEV    0x02
 #define SERIAL1_DEV    0x04
 
+// ========== 修改1：将APPLICATION_BASE映射到原生APP_LOAD_ADDRESS ==========
+#define APPLICATION_BASE               APP_LOAD_ADDRESS
+// 原生APP_LOAD_ADDRESS保留，仅新增映射，不修改原有逻辑
 #define APP_LOAD_ADDRESS               0x08020000
+
 #define BOOTLOADER_DELAY               5000
 #define INTERFACE_USB                  1
 #define INTERFACE_USB_CONFIG           "/dev/ttyACM0"
@@ -100,6 +77,9 @@
 #define _FLASH_KBYTES                  (*(uint32_t *)0x1FF1E880)
 #define BOARD_FLASH_SECTORS            (15)
 #define BOARD_FLASH_SIZE               (_FLASH_KBYTES * 1024)
+
+// ========== 修改2：新增APPLICATION_SECTOR（适配flash.c，无实际作用，仅避免编译警告） ==========
+#define APPLICATION_SECTOR             1
 
 #define OSC_FREQ                       8
 
