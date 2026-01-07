@@ -42,6 +42,8 @@
  */
 
 #include "board_config.h"
+#include "hw_config.h"  // 新增：引入Bootloader硬件配置
+#include "stm32h7xx_hal.h"  // 新增：HAL库头文件
 
 #include <syslog.h>
 
@@ -69,6 +71,123 @@ extern void led_init(void);
 extern void led_on(int led);
 extern void led_off(int led);
 __END_DECLS
+
+// 新增：全局句柄（供Bootloader的USB/SDIO检测使用）
+SD_HandleTypeDef hsd;
+PCD_HandleTypeDef hpcd_USB_OTG_FS;
+
+// 新增：系统时钟配置（STM32H743 → 480MHz）
+static void SystemClock_Config(void)
+{
+    RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+    RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+
+    // 1. 启用电源时钟，配置电压缩放
+    __HAL_RCC_PWR_CLK_ENABLE();
+    __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
+
+    // 2. 配置HSE和PLL（外部晶振25MHz）
+    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+    RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+    RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+    RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+    RCC_OscInitStruct.PLL.PLLM = 5;
+    RCC_OscInitStruct.PLL.PLLN = 192;
+    RCC_OscInitStruct.PLL.PLLP = 2;
+    RCC_OscInitStruct.PLL.PLLQ = 8;
+    RCC_OscInitStruct.PLL.PLLR = 2;
+
+    if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+    {
+        while (1); // 时钟配置失败，死循环
+    }
+
+    // 3. 配置系统时钟总线
+    RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK |
+                                  RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+    RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+    RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+    RCC_ClkInitStruct.APB1CLKDivider = APB1_PRESCALER;
+    RCC_ClkInitStruct.APB2CLKDivider = APB2_PRESCALER;
+
+    if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK)
+    {
+        while (1);
+    }
+}
+
+// 新增：USB初始化函数（供Bootloader调用）
+void USB_Init(void)
+{
+    // 1. 启用GPIO和USB时钟
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_USB_OTG_FS_CLK_ENABLE();
+
+    // 2. 配置USB D+ D-引脚
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+    GPIO_InitStruct.Pin = USB_OTG_FS_DP_PIN | USB_OTG_FS_DM_PIN;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+    GPIO_InitStruct.Alternate = GPIO_AF10_OTG1_FS;
+    HAL_GPIO_Init(USB_OTG_FS_PORT, &GPIO_InitStruct);
+
+    // 3. 初始化USB外设
+    hpcd_USB_OTG_FS.Instance = USB_OTG_FS;
+    hpcd_USB_OTG_FS.Init.dev_endpoints = 6;
+    hpcd_USB_OTG_FS.Init.speed = PCD_SPEED_FULL;
+    hpcd_USB_OTG_FS.Init.dma_enable = DISABLE;
+    hpcd_USB_OTG_FS.Init.phy_itface = PCD_PHY_EMBEDDED;
+    hpcd_USB_OTG_FS.Init.Sof_enable = DISABLE;
+    hpcd_USB_OTG_FS.Init.low_power_enable = DISABLE;
+    hpcd_USB_OTG_FS.Init.lpm_enable = DISABLE;
+    hpcd_USB_OTG_FS.Init.battery_charging_enable = DISABLE;
+
+    if (HAL_PCD_Init(&hpcd_USB_OTG_FS) != HAL_OK)
+    {
+        while (1);
+    }
+}
+
+// 新增：SDIO初始化函数（供Bootloader调用）
+void SDIO_Init(void)
+{
+    // 1. 启用GPIO和SDIO时钟
+    __HAL_RCC_GPIOC_CLK_ENABLE();
+    __HAL_RCC_SDIO_CLK_ENABLE();
+
+    // 2. 配置SDIO引脚
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+    GPIO_InitStruct.Pin = SDIO_CLK_PIN | SDIO_CMD_PIN | SDIO_D0_PIN | SDIO_D1_PIN | SDIO_D2_PIN | SDIO_D3_PIN;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_PULLUP;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+    GPIO_InitStruct.Alternate = GPIO_AF12_SDIO;
+    HAL_GPIO_Init(SDIO_PORT, &GPIO_InitStruct);
+
+    // 3. 初始化SDIO外设
+    hsd.Instance = SDIO;
+    hsd.Init.ClockEdge = SDIO_CLOCK_EDGE_RISING;
+    hsd.Init.ClockBypass = SDIO_CLOCK_BYPASS_DISABLE;
+    hsd.Init.ClockPowerSave = SDIO_CLOCK_POWER_SAVE_DISABLE;
+    hsd.Init.BusWide = SDIO_BUS_WIDE_1B;
+    hsd.Init.HardwareFlowControl = SDIO_HARDWARE_FLOW_CONTROL_DISABLE;
+    hsd.Init.ClockDiv = 4;
+
+    if (HAL_SD_Init(&hsd) != HAL_OK)
+    {
+        while (1);
+    }
+}
+
+// 新增：Bootloader硬件初始化入口
+void HW_Init(void)
+{
+    HAL_Init();          // 初始化HAL库
+    SystemClock_Config();// 配置系统时钟
+    USB_Init();          // 初始化USB
+    SDIO_Init();         // 初始化SDIO
+}
 
 /************************************************************************************
  * Name: board_peripheral_reset
