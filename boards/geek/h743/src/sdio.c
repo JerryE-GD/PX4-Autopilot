@@ -152,6 +152,11 @@ uint32_t SD_Read_Firmware(uint32_t src_addr, uint8_t *buf, uint32_t len)
 
     // 读取整块数据
     if (block_count > 0) {
+        // 核心修复1：补充sdio_readblocks函数声明（解决隐式声明错误）
+        extern int sdio_readblocks(FAR struct sdio_dev_s *dev, uint32_t startblock,
+                                   FAR uint8_t *buffer, unsigned int nblocks);
+        
+        // 核心修复2：调用sdio_readblocks时参数匹配（dev + 块地址 + 缓冲区 + 块数）
         int ret = sdio_readblocks(sdio_dev, block_addr, buf, block_count);
         if (ret == OK) {
             read_len = block_count * 512;
