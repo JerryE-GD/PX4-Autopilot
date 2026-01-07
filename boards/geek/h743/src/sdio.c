@@ -38,13 +38,12 @@
 
 #include <nuttx/config.h>
 #include <board_config.h>
-#include "hw_config.h"  // 新增：Bootloader硬件配置
 
 #include <stdbool.h>
 #include <stdio.h>
 #include <debug.h>
 #include <errno.h>
-#include <syslog.h>
+#include <syslog.h>  // 新增：用于日志输出（原版已有syslog调用，兼容）
 
 #include <nuttx/sdio.h>
 #include <nuttx/mmcsd.h>
@@ -67,10 +66,6 @@
 #  undef HAVE_NCD
 #endif
 
-/* SDIO 配置 */
-#define SDIO_SLOTNO  0
-#define SDIO_MINOR   0
-
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -81,9 +76,8 @@ static bool g_sd_inserted = 0xff; /* Impossible value */
 #endif
 
 /****************************************************************************
- * 全局 extern 声明（核心修复：移到函数外部，避免嵌套）
+ * 全局函数声明（严格遵循原版风格，仅新增必要声明）
  ****************************************************************************/
-// NuttX 原生 sdio_readblocks 函数原型（参数顺序：dev, startblock, nblocks, buffer）
 extern int sdio_readblocks(FAR struct sdio_dev_s *dev, uint32_t startblock,
                            size_t nblocks, FAR uint8_t *buffer);
 
@@ -116,7 +110,7 @@ static int stm32_ncd_interrupt(int irq, FAR void *context)
 #endif
 
 /****************************************************************************
- * 新增：Bootloader SD卡检测&固件读取函数
+ * 新增：Bootloader 专用 SD 卡操作函数（最小化修改，兼容原版）
  ****************************************************************************/
 
 /**
@@ -126,72 +120,50 @@ static int stm32_ncd_interrupt(int irq, FAR void *context)
 uint8_t SD_Card_Detect(void)
 {
 #ifdef HAVE_NCD
-    // 使用PX4原生的卡检测GPIO判断（最可靠）
     return !stm32_gpioread(GPIO_SDMMC1_NCD) ? 1 : 0;
 #else
-    // 无卡检测GPIO时，默认认为卡已插入（适配无检测引脚的硬件）
     return 1;
 #endif
 }
 
 /**
  * @brief Bootloader专用：从SD卡读取固件数据
- * @param src_addr SD卡起始地址（字节地址，自动转为块地址）
+ * @param src_addr SD卡起始地址（字节地址，自动转为512字节块地址）
  * @param buf 数据缓冲区
  * @param len 读取长度（字节）
- * @return 实际读取长度
+ * @return 实际读取长度（字节）
  */
 uint32_t SD_Read_Firmware(uint32_t src_addr, uint8_t *buf, uint32_t len)
 {
-    // 1. 入参合法性检查
+    /* 入参合法性检查 */
     if (buf == NULL || len == 0) {
         return 0;
     }
 
-    // 2. 先检测SD卡是否插入
+    /* 检测SD卡是否插入 */
     if (SD_Card_Detect() == 0) {
-        syslog(LOG_ERR, "[boot] SD card not inserted\n");
         return 0;
     }
 
-    // 3. 确保SDIO驱动已初始化（核心修复：正确赋值sdio_dev）
+    /* 确保SDIO驱动已初始化（复用原版初始化逻辑） */
     if (sdio_dev == NULL) {
-        sdio_dev = sdio_initialize(SDIO_SLOTNO); // 直接调用原生初始化函数
-        if (sdio_dev == NULL) {
-            syslog(LOG_ERR, "[boot] SDIO initialize failed\n");
-            return 0;
-        }
-
-        // 绑定SDIO到MMC/SD驱动（必须步骤）
-        int ret = mmcsd_slotinitialize(SDIO_MINOR, sdio_dev);
-        if (ret != OK) {
-            syslog(LOG_ERR, "[boot] SDIO bind to MMCSD failed: %d\n", ret);
-            sdio_dev = NULL;
+        if (stm32_sdio_initialize() != OK) {
             return 0;
         }
     }
 
-    // 4. 按SD卡块大小（512字节）读取数据
+    /* 按SD卡块大小（512字节）读取数据 */
     const uint32_t block_size = 512;
-    uint32_t block_addr = src_addr / block_size;  // 字节地址转块地址
-    uint32_t block_count = len / block_size;      // 完整块数
-    uint32_t remain_bytes = len % block_size;     // 剩余不足1块的字节
+    uint32_t block_addr = src_addr / block_size;
+    uint32_t block_count = len / block_size;
     uint32_t read_len = 0;
 
-    // 读取整块数据（核心修复：参数顺序匹配NuttX原生函数）
-    if (block_count > 0) {
-        int ret = sdio_readblocks(sdio_dev, block_addr, block_count, buf);
-        if (ret == OK) {
+    /* 读取整块数据（参数顺序严格匹配NuttX原生函数） */
+    if (block_count > 0 && sdio_dev != NULL) {
+        if (sdio_readblocks(sdio_dev, block_addr, block_count, buf) == OK) {
             read_len = block_count * block_size;
-            syslog(LOG_INFO, "[boot] SDIO read %d blocks (addr: %lu, len: %lu)\n",
-                   block_count, block_addr, read_len);
-        } else {
-            syslog(LOG_ERR, "[boot] SDIO read blocks failed: %d\n", ret);
         }
     }
-
-    // 忽略不足1块的剩余字节（简化版，后续可扩展）
-    UNUSED(remain_bytes);
 
     return read_len;
 }
