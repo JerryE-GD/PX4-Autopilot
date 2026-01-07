@@ -44,6 +44,13 @@
 #include "board_config.h"
 #include "hw_config.h"
 
+// 核心补充1：包含NuttX/STM32寄存器操作必需的头文件
+#include <nuttx/irq.h>
+#include <chip.h>
+#include <stm32h7xx.h>
+#include <stm32h7xx_ll_rcc.h>
+#include <stm32h7xx_ll_pwr.h>
+
 #include <syslog.h>
 
 #include <nuttx/config.h>
@@ -70,6 +77,29 @@ extern void led_init(void);
 extern void led_on(int led);
 extern void led_off(int led);
 __END_DECLS
+
+// 核心补充2：定义缺失的寄存器操作宏（NuttX原生宏，适配PX4编译）
+#ifndef setbits_reg32
+#define setbits_reg32(reg, bits)     do { (reg) |= (bits); } while(0)
+#endif
+
+#ifndef modifyreg32
+#define modifyreg32(reg, clearbits, setbits) \
+    do { (reg) = ((reg) & ~(clearbits)) | (setbits); } while(0)
+#endif
+
+#ifndef clearbits_reg32
+#define clearbits_reg32(reg, bits)   do { (reg) &= ~(bits); } while(0)
+#endif
+
+// 补充：定义hw_config.h中可能缺失的分频宏（避免未定义错误）
+#ifndef APB1_PRESCALER
+#define APB1_PRESCALER RCC_CFGR_PPRE1_DIV2
+#endif
+
+#ifndef APB2_PRESCALER
+#define APB2_PRESCALER RCC_CFGR_PPRE2_DIV1
+#endif
 
 // 替换HAL库：PX4原生系统时钟配置（适配STM32H743）
 static void SystemClock_Config(void)
