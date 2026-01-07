@@ -38,7 +38,8 @@
  */
 
 #include "board_config.h"
-
+#include "hw_config.h"  // 新增：引入Bootloader配置头文件（你已改好的hw_config.h）
+#include <stdint.h>     // 新增：兼容串口输出函数的类型定义
 #include <syslog.h>
 
 #include <nuttx/config.h>
@@ -101,6 +102,8 @@ void HW_Init(void)
     // 仅初始化USB和SDIO（原版已验证可编译的函数）
     USB_Init();
     SDIO_Init();
+    // ========== 新增：初始化调试串口（复用PX4原生USART1，不冲突） ==========
+    usart_initialize(); // 调用hw_config.h声明的串口初始化函数
 }
 
 // **************************
@@ -242,4 +245,30 @@ __EXPORT int board_app_initialize(uintptr_t arg)
 	px4_platform_configure();
 
 	return OK;
+}
+// ========== 新增：Bootloader调试串口初始化（复用PX4原生接口，无冲突） ==========
+void usart_initialize(void)
+{
+    // 启用USART1时钟（PX4原生寄存器操作，兼容你的配置）
+    RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
+    // 配置波特率（复用你hw_config.h定义的115200）
+    USART1->BRR = SystemCoreClock / 115200;
+    // 启用串口收发（PX4原生寄存器，无自定义逻辑）
+    USART1->CR1 = USART_CR1_TE | USART_CR1_RE | USART_CR1_UE;
+}
+
+// ========== 新增：Bootloader串口输出函数（仅用于日志，不影响原有逻辑） ==========
+void usart_puts(const char *str)
+{
+    while(*str)
+    {
+        while((USART1->ISR & USART_ISR_TXE) == 0); // 等待发送寄存器空
+        USART1->TDR = *str++; // 发送字符
+    }
+}
+
+// ========== 新增：hw_config_init（映射到你的HW_Init，兼容声明） ==========
+void hw_config_init(void)
+{
+    HW_Init(); // 直接调用你已写好的初始化函数，无重复逻辑
 }
