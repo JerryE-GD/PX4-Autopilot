@@ -35,7 +35,7 @@
  * @file init.c
  *
  * FMU-specific early startup code. Pure PX4/NuttX native implementation,
- * no STM32 HAL/LL library dependency.
+ * no STM32 HAL/LL library dependency, no macro redefinition conflict.
  */
 
 #include "board_config.h"
@@ -69,69 +69,151 @@ extern void led_off(int led);
 __END_DECLS
 
 // **************************
-// PX4/NuttX原生寄存器定义（替代STM32官方头文件）
-// 仅定义需要的寄存器，避免依赖官方库
+// PX4/NuttX原生寄存器定义（仅在未定义时声明，避免冲突）
 // **************************
+#ifndef RCC_BASE
 #define RCC_BASE            0x58024400UL
+#endif
+
+#ifndef PWR_BASE
 #define PWR_BASE            0x58024000UL
+#endif
+
+#ifndef FLASH_BASE_ADDR
 #define FLASH_BASE_ADDR     0x52002000UL
+#endif
 
-// RCC寄存器
-#define RCC                 ((volatile uint32_t *)RCC_BASE)
-#define RCC_APB1LENR        (RCC[0x14/4])  // APB1LENR offset: 0x14
-#define RCC_CR              (RCC[0x00/4])  // CR offset: 0x00
-#define RCC_PLLCKSELR       (RCC[0x40/4])  // PLLCKSELR offset: 0x40
-#define RCC_PLLCFGR         (RCC[0x44/4])  // PLLCFGR offset: 0x44
-#define RCC_PLL1DIVR        (RCC[0x80/4])  // PLL1DIVR offset: 0x80
-#define RCC_CFGR            (RCC[0x08/4])  // CFGR offset: 0x08
-#define RCC_AHB4ENR         (RCC[0x20/4])  // AHB4ENR offset: 0x20
-#define RCC_AHB2ENR         (RCC[0x1C/4])  // AHB2ENR offset: 0x1C
-
-// RCC寄存器位定义
-#define RCC_APB1LENR_PWREN  (1 << 28)     // PWR clock enable
-#define RCC_CR_HSEON        (1 << 16)      // HSE enable
-#define RCC_CR_HSERDY       (1 << 17)      // HSE ready
-#define RCC_CR_PLL1ON       (1 << 24)      // PLL1 enable
-#define RCC_CR_PLL1RDY      (1 << 25)      // PLL1 ready
-#define RCC_PLLCKSELR_PLLSRC_MASK (0x03 << 0) // PLL source mask
-#define RCC_PLLCFGR_PLLM_MASK (0x3F << 0)    // PLLM mask
-#define RCC_PLL1DIVR_N1_MASK (0x1FF << 0)   // PLL1 N1 mask
-#define RCC_PLL1DIVR_P1_MASK (0x3F << 8)    // PLL1 P1 mask
-#define RCC_PLL1DIVR_Q1_MASK (0x3F << 16)   // PLL1 Q1 mask
-#define RCC_PLL1DIVR_R1_MASK (0x3F << 24)   // PLL1 R1 mask
-#define RCC_CFGR_SW_MASK    (0x03 << 0)    // SW mask
-#define RCC_CFGR_SWS_MASK   (0x03 << 2)    // SWS mask
-#define RCC_CFGR_HPRE_MASK  (0x0F << 4)    // HPRE mask
-#define RCC_CFGR_PPRE1_MASK (0x07 << 8)    // PPRE1 mask
-#define RCC_CFGR_PPRE2_MASK (0x07 << 11)   // PPRE2 mask
-#define RCC_AHB4ENR_GPIOAEN (1 << 0)       // GPIOA clock enable
-#define RCC_AHB4ENR_GPIOCEN (1 << 2)       // GPIOC clock enable
-#define RCC_AHB2ENR_OTGFSEN (1 << 7)       // OTG FS clock enable
-#define RCC_AHB2ENR_SDMMC1EN (1 << 10)     // SDMMC1 clock enable
+// RCC寄存器（指针形式，避免数组访问冲突）
+#define RCC_APB1LENR        (*(volatile uint32_t *)(RCC_BASE + 0x14))
+#define RCC_CR              (*(volatile uint32_t *)(RCC_BASE + 0x00))
+#define RCC_PLLCKSELR       (*(volatile uint32_t *)(RCC_BASE + 0x40))
+#define RCC_PLLCFGR         (*(volatile uint32_t *)(RCC_BASE + 0x44))
+#define RCC_PLL1DIVR        (*(volatile uint32_t *)(RCC_BASE + 0x80))
+#define RCC_CFGR            (*(volatile uint32_t *)(RCC_BASE + 0x08))
+#define RCC_AHB4ENR         (*(volatile uint32_t *)(RCC_BASE + 0x20))
+#define RCC_AHB2ENR         (*(volatile uint32_t *)(RCC_BASE + 0x1C))
 
 // PWR寄存器
-#define PWR                 ((volatile uint32_t *)PWR_BASE)
-#define PWR_CR1             (PWR[0x00/4])  // CR1 offset: 0x00
-#define PWR_CR1_VOS_MASK    (0x03 << 9)    // VOS mask
-#define PWR_CR1_VOS_0       (0x01 << 9)    // VOS scale 1
+#define PWR_CR1             (*(volatile uint32_t *)(PWR_BASE + 0x00))
 
 // FLASH寄存器
 #define FLASH_ACR           (*(volatile uint32_t *)(FLASH_BASE_ADDR + 0x00))
-#define FLASH_ACR_LATENCY_MASK (0x1F << 0) // Latency mask
-
-// 分频宏定义（PX4原生）
-#define APB1_PRESCALER      (0x05 << 8)    // PPRE1: DIV2
-#define APB2_PRESCALER      (0x00 << 11)   // PPRE2: DIV1
 
 // **************************
-// PX4原生寄存器操作宏（替代setbits_reg32/modifyreg32）
+// RCC寄存器位定义（仅在未定义时声明，核心修复：避免重定义）
+// **************************
+#ifndef RCC_APB1LENR_PWREN
+#define RCC_APB1LENR_PWREN  (1 << 28)     // PWR clock enable
+#endif
+
+#ifndef RCC_CR_HSEON
+#define RCC_CR_HSEON        (1 << 16)      // HSE enable
+#endif
+
+#ifndef RCC_CR_HSERDY
+#define RCC_CR_HSERDY       (1 << 17)      // HSE ready
+#endif
+
+#ifndef RCC_CR_PLL1ON
+#define RCC_CR_PLL1ON       (1 << 24)      // PLL1 enable
+#endif
+
+#ifndef RCC_CR_PLL1RDY
+#define RCC_CR_PLL1RDY      (1 << 25)      // PLL1 ready
+#endif
+
+#ifndef RCC_PLLCKSELR_PLLSRC_MASK
+#define RCC_PLLCKSELR_PLLSRC_MASK (0x03 << 0) // PLL source mask
+#endif
+
+#ifndef RCC_PLLCFGR_PLLM_MASK
+#define RCC_PLLCFGR_PLLM_MASK (0x3F << 0)    // PLLM mask
+#endif
+
+#ifndef RCC_PLL1DIVR_N1_MASK
+#define RCC_PLL1DIVR_N1_MASK (0x1FF << 0)   // PLL1 N1 mask
+#endif
+
+#ifndef RCC_PLL1DIVR_P1_MASK
+#define RCC_PLL1DIVR_P1_MASK (0x3F << 8)    // PLL1 P1 mask
+#endif
+
+#ifndef RCC_PLL1DIVR_Q1_MASK
+#define RCC_PLL1DIVR_Q1_MASK (0x3F << 16)   // PLL1 Q1 mask
+#endif
+
+#ifndef RCC_PLL1DIVR_R1_MASK
+#define RCC_PLL1DIVR_R1_MASK (0x3F << 24)   // PLL1 R1 mask
+#endif
+
+#ifndef RCC_CFGR_SW_MASK
+#define RCC_CFGR_SW_MASK    (0x03 << 0)    // SW mask
+#endif
+
+#ifndef RCC_CFGR_SWS_MASK
+#define RCC_CFGR_SWS_MASK   (0x03 << 2)    // SWS mask
+#endif
+
+#ifndef RCC_CFGR_HPRE_MASK
+#define RCC_CFGR_HPRE_MASK  (0x0F << 4)    // HPRE mask
+#endif
+
+#ifndef RCC_CFGR_PPRE1_MASK
+#define RCC_CFGR_PPRE1_MASK (0x07 << 8)    // PPRE1 mask
+#endif
+
+#ifndef RCC_CFGR_PPRE2_MASK
+#define RCC_CFGR_PPRE2_MASK (0x07 << 11)   // PPRE2 mask
+#endif
+
+#ifndef RCC_AHB4ENR_GPIOAEN
+#define RCC_AHB4ENR_GPIOAEN (1 << 0)       // GPIOA clock enable
+#endif
+
+#ifndef RCC_AHB4ENR_GPIOCEN
+#define RCC_AHB4ENR_GPIOCEN (1 << 2)       // GPIOC clock enable
+#endif
+
+#ifndef RCC_AHB2ENR_OTGFSEN
+#define RCC_AHB2ENR_OTGFSEN (1 << 7)       // OTG FS clock enable
+#endif
+
+#ifndef RCC_AHB2ENR_SDMMC1EN
+#define RCC_AHB2ENR_SDMMC1EN (1 << 10)     // SDMMC1 clock enable
+#endif
+
+// PWR寄存器位定义
+#ifndef PWR_CR1_VOS_MASK
+#define PWR_CR1_VOS_MASK    (0x03 << 9)    // VOS mask
+#endif
+
+#ifndef PWR_CR1_VOS_0
+#define PWR_CR1_VOS_0       (0x01 << 9)    // VOS scale 1
+#endif
+
+// FLASH寄存器位定义
+#ifndef FLASH_ACR_LATENCY_MASK
+#define FLASH_ACR_LATENCY_MASK (0x1F << 0) // Latency mask
+#endif
+
+// 分频宏定义（PX4原生）
+#ifndef APB1_PRESCALER
+#define APB1_PRESCALER      (0x05 << 8)    // PPRE1: DIV2
+#endif
+
+#ifndef APB2_PRESCALER
+#define APB2_PRESCALER      (0x00 << 11)   // PPRE2: DIV1
+#endif
+
+// **************************
+// PX4原生寄存器操作宏（无冲突）
 // **************************
 #define px4_setbits(reg, bits)   do { reg |= (bits); } while(0)
 #define px4_modifyreg(reg, clr, set) do { reg = (reg & ~(clr)) | (set); } while(0)
 #define px4_waitbit(reg, bit)    do { while((reg & (bit)) == 0); } while(0)
 
 // **************************
-// PX4原生系统时钟配置（无任何STM32官方库依赖）
+// PX4原生系统时钟配置（无宏冲突）
 // **************************
 static void SystemClock_Config(void)
 {
@@ -146,12 +228,12 @@ static void SystemClock_Config(void)
     px4_waitbit(RCC_CR, RCC_CR_HSERDY);
 
     // 3. Configure PLL (HSE -> PLL -> 480MHz)
-    px4_modifyreg(RCC_PLLCKSELR, RCC_PLLCKSELR_PLLSRC_MASK, 0x01 << 0);  // PLL source = HSE
-    px4_modifyreg(RCC_PLLCFGR, RCC_PLLCFGR_PLLM_MASK, 5 << 0);           // PLLM = 5
-    px4_modifyreg(RCC_PLL1DIVR, RCC_PLL1DIVR_N1_MASK, 192 << 0);         // PLLN = 192
-    px4_modifyreg(RCC_PLL1DIVR, RCC_PLL1DIVR_P1_MASK, 2 << 8);           // PLLP = 2
-    px4_modifyreg(RCC_PLL1DIVR, RCC_PLL1DIVR_Q1_MASK, 8 << 16);          // PLLQ = 8
-    px4_modifyreg(RCC_PLL1DIVR, RCC_PLL1DIVR_R1_MASK, 2 << 24);          // PLLR = 2
+    px4_modifyreg(RCC_PLLCKSELR, RCC_PLLCKSELR_PLLSRC_MASK, 0x01 << 0);
+    px4_modifyreg(RCC_PLLCFGR, RCC_PLLCFGR_PLLM_MASK, 5 << 0);
+    px4_modifyreg(RCC_PLL1DIVR, RCC_PLL1DIVR_N1_MASK, 192 << 0);
+    px4_modifyreg(RCC_PLL1DIVR, RCC_PLL1DIVR_P1_MASK, 2 << 8);
+    px4_modifyreg(RCC_PLL1DIVR, RCC_PLL1DIVR_Q1_MASK, 8 << 16);
+    px4_modifyreg(RCC_PLL1DIVR, RCC_PLL1DIVR_R1_MASK, 2 << 24);
 
     // 4. Enable PLL1 and wait for ready
     px4_setbits(RCC_CR, RCC_CR_PLL1ON);
