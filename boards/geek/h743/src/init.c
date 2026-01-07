@@ -71,44 +71,58 @@ extern void led_off(int led);
 __END_DECLS
 
 // **************************
-// Bootloader 新增函数（适配PX4原生接口，无编译错误）
+// geek_h743 板型专用：直接定义引脚（避免宏名冲突）
+// **************************
+// USB OTG FS (PA11=D+, PA12=D-)
+#define PIN_USB_DP          (GPIO_INPUT | GPIO_PULLUP | GPIO_PORT1 | GPIO_PIN11)
+#define PIN_USB_DM          (GPIO_INPUT | GPIO_PULLUP | GPIO_PORT1 | GPIO_PIN12)
+
+// SDIO1 (PC8=D0, PC9=D1, PC10=D2, PC11=D3, PC12=CLK)
+#define PIN_SDIO_D0         (GPIO_ALT | GPIO_AF12 | GPIO_PORT3 | GPIO_PIN8 | GPIO_SPEED_50MHz | GPIO_PULLUP)
+#define PIN_SDIO_D1         (GPIO_ALT | GPIO_AF12 | GPIO_PORT3 | GPIO_PIN9 | GPIO_SPEED_50MHz | GPIO_PULLUP)
+#define PIN_SDIO_D2         (GPIO_ALT | GPIO_AF12 | GPIO_PORT3 | GPIO_PIN10 | GPIO_SPEED_50MHz | GPIO_PULLUP)
+#define PIN_SDIO_D3         (GPIO_ALT | GPIO_AF12 | GPIO_PORT3 | GPIO_PIN11 | GPIO_SPEED_50MHz | GPIO_PULLUP)
+#define PIN_SDIO_CLK        (GPIO_ALT | GPIO_AF12 | GPIO_PORT3 | GPIO_PIN12 | GPIO_SPEED_50MHz | GPIO_PULLUP)
+
+// **************************
+// Bootloader 新增函数（无宏冲突，直接引脚配置）
 // **************************
 
 /**
- * @brief Bootloader专用：USB初始化（使用PX4原生GPIO接口）
+ * @brief Bootloader专用：USB初始化（直接引脚配置，无宏冲突）
  */
 void USB_Init(void)
 {
-    // PX4原生GPIO配置接口（替代HAL库，无编译错误）
-    px4_arch_configgpio(GPIO_USB_OTG_FS_DP);  // PA11 - USB D+
-    px4_arch_configgpio(GPIO_USB_OTG_FS_DM);  // PA12 - USB D-
+    // 直接配置USB引脚（使用PX4原生GPIO接口）
+    px4_arch_configgpio(PIN_USB_DP);
+    px4_arch_configgpio(PIN_USB_DM);
     
-    // 调用PX4原生USB初始化函数（已在stm32_boardinitialize中调用，此处仅冗余保障）
+    // 调用PX4原生USB初始化函数
     stm32_usbinitialize();
 }
 
 /**
- * @brief Bootloader专用：SDIO初始化（使用PX4原生GPIO接口）
+ * @brief Bootloader专用：SDIO初始化（直接引脚配置，无宏冲突）
  */
 void SDIO_Init(void)
 {
-    // PX4原生GPIO配置（SDIO引脚，从board_config.h中读取定义）
-    px4_arch_configgpio(GPIO_SDMMC1_D0);   // PC8
-    px4_arch_configgpio(GPIO_SDMMC1_D1);   // PC9
-    px4_arch_configgpio(GPIO_SDMMC1_D2);   // PC10
-    px4_arch_configgpio(GPIO_SDMMC1_D3);   // PC11
-    px4_arch_configgpio(GPIO_SDMMC1_CK);   // PC12
+    // 直接配置SDIO引脚
+    px4_arch_configgpio(PIN_SDIO_D0);
+    px4_arch_configgpio(PIN_SDIO_D1);
+    px4_arch_configgpio(PIN_SDIO_D2);
+    px4_arch_configgpio(PIN_SDIO_D3);
+    px4_arch_configgpio(PIN_SDIO_CLK);
     
-    // 调用PX4原生SDIO初始化函数（已在board_app_initialize中调用）
+    // 调用PX4原生SDIO初始化函数
     stm32_sdio_initialize();
 }
 
 /**
- * @brief Bootloader硬件初始化入口（仅调用PX4原生接口）
+ * @brief Bootloader硬件初始化入口（纯PX4原生接口）
  */
 void HW_Init(void)
 {
-    // 复用PX4原生初始化逻辑，不重复造轮子
+    // 复用PX4原生初始化逻辑
     stm32_boardinitialize();
     USB_Init();
     SDIO_Init();
