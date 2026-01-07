@@ -39,6 +39,7 @@
 
 #include "board_config.h"
 #include "bl.h"
+#include "hw_config.h"  // 新增：引入硬件配置
 
 #include <nuttx/config.h>
 #include <nuttx/board.h>
@@ -47,6 +48,16 @@
 #include <arch/board/board.h>
 #include "arm_internal.h"
 #include <px4_platform_common/init.h>
+
+// 新增：前置声明（外设检测+FLASH操作）
+uint8_t SD_Card_Detect(void);
+uint8_t USB_Device_Detect(void);
+uint8_t FLASH_Erase_App_Area(void);
+uint8_t FLASH_Write_Firmware(uint32_t addr, uint8_t *buf, uint32_t len);
+
+// 新增：函数指针（用于跳转到PX4应用程序）
+typedef void (*pFunction)(void);
+pFunction JumpToApplication;
 
 extern int sercon_main(int c, char **argv);
 
@@ -60,6 +71,38 @@ __EXPORT void stm32_boardinitialize(void)
 
 __EXPORT int board_app_initialize(uintptr_t arg)
 {
+    // 新增：Bootloader核心逻辑（初始化→检测→升级→跳转）
+    uint8_t usb_connected = USB_Device_Detect();  // 检测USB连接
+    uint8_t sd_present = SD_Card_Detect();        // 检测SD卡插入
+
+    // 固件升级逻辑
+    if (usb_connected || sd_present) {
+        // 擦除应用程序区域
+        if (FLASH_Erase_App_Area()) {
+            uint8_t firmware_buf[1024] = {0};
+            uint32_t firmware_len = 0;
+
+            // 从USB/SD卡读取固件（预留接口）
+            if (usb_connected) {
+                // firmware_len = USB_Receive_Firmware(firmware_buf, sizeof(firmware_buf));
+            } else if (sd_present) {
+                // firmware_len = SD_Read_Firmware(0x00, firmware_buf, sizeof(firmware_buf));
+            }
+
+            // 写入固件到FLASH
+            if (firmware_len > 0) {
+                FLASH_Write_Firmware(APPLICATION_BASE, firmware_buf, firmware_len);
+            }
+        }
+    }
+
+    // 跳转到PX4应用程序（STM32标准流程）
+    if (((*(__IO uint32_t*)APPLICATION_BASE) & 0x2FFE0000) == 0x20000000) {
+        JumpToApplication = (pFunction)(*(__IO uint32_t*)(APPLICATION_BASE + 4));
+        __set_MSP(*(__IO uint32_t*)APPLICATION_BASE);
+        JumpToApplication();
+    }
+
 	return 0;
 }
 
