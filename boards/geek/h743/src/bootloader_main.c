@@ -72,7 +72,6 @@ __EXPORT void stm32_boardinitialize(void)
 
 __EXPORT int board_app_initialize(uintptr_t arg)
 {
-    hw_config_init(); 
     // 新增：Bootloader核心逻辑（初始化→检测→升级→跳转）
     uint8_t usb_connected = USB_Device_Detect();  // 检测USB连接
     uint8_t sd_present = SD_Card_Detect();        // 检测SD卡插入
