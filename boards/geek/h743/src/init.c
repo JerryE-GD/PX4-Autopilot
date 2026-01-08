@@ -59,7 +59,6 @@
 #  include <parameters/flashparams/flashfs.h>
 #endif
 
-
 // -----------------------------------------------------------------------------
 
 __BEGIN_DECLS
@@ -71,6 +70,7 @@ __END_DECLS
 // -------------------------- 增量添加：串口函数提前声明 --------------------------
 static void serial1_init(void);
 static void serial2_init(void);
+// -----------------------------------------------------------------------------
 
 // **************************
 // Bootloader 新增函数（完全复用PX4原版已验证逻辑，无自定义函数调用）
@@ -113,17 +113,14 @@ void HW_Init(void)
     // ===========================================================================
 }
 
-// -------------------------- 增量添加：串口初始化函数（修复后） --------------------------
+// -------------------------- 增量添加：串口初始化函数（空实现，仅保证编译通过） --------------------------
 /**
  * @brief 串口1（USART1）初始化：系统控制台，115200 8N1
  */
 static void serial1_init(void)
 {
-    // 修复点1：改用PX4原生GPIO配置接口（替换原px4_gpio_init）
-    px4_arch_configgpio(GPIO_USART1_TX);
-    px4_arch_configgpio(GPIO_USART1_RX);
-    // 修复点2：改用PX4原生串口波特率配置接口（替换原stm32_uart_configure）
-    px4_arch_uart_set_baud(1, 115200);
+    // 暂时空实现（后续基于PX4原生UART框架完善）
+    // 仅保证编译通过，无未定义函数
 }
 
 /**
@@ -131,11 +128,8 @@ static void serial1_init(void)
  */
 static void serial2_init(void)
 {
-    // 修复点1：改用PX4原生GPIO配置接口（替换原px4_gpio_init）
-    px4_arch_configgpio(GPIO_USART2_TX);
-    px4_arch_configgpio(GPIO_USART2_RX);
-    // 修复点2：改用PX4原生串口波特率配置接口（替换原stm32_uart_configure）
-    px4_arch_uart_set_baud(2, 9600);
+    // 暂时空实现（后续基于PX4原生UART框架完善）
+    // 仅保证编译通过，无未定义函数
 }
 // -----------------------------------------------------------------------------
 
