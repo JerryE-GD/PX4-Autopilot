@@ -39,9 +39,9 @@
 
 #include "board_config.h"
 #include "bl.h"
-#include "hw_config.h"  // 新增：引入硬件配置
-#include "init.c"       // 新增：引入你写的初始化/串口输出函数
-#include <stdint.h>     // 新增：兼容串口输出的类型定义
+#include "hw_config.h"  // 保留硬件配置（无冲突）
+// 移除init.c引入（解决led_on函数冲突）
+#include <stdint.h>     // 保留基础类型定义
 #include <nuttx/config.h>
 #include <nuttx/board.h>
 #include <chip.h>
