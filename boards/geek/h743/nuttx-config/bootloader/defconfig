@@ -83,3 +83,23 @@ CONFIG_USBDEV=y
 CONFIG_USBDEV_BUSPOWERED=y
 CONFIG_USBDEV_MAXPOWER=500
 CONFIG_USEC_PER_TICK=1000
+# -------------------------- 阶段四增量添加：Bootloader专属配置 --------------------------
+# 1. 标记为Bootloader模式，开启独立引导
+CONFIG_BOOTLOADER=y
+CONFIG_BOOTLOADER_SIZE=0x20000  # 128KB Flash分配给Bootloader（和nsh/defconfig一致）
+# 2. 开启USART1作为Bootloader控制台（匹配init.c的serial1_init）
+CONFIG_STM32H7_USART1=y
+CONFIG_UART1_SERIAL_CONSOLE=y
+CONFIG_USART1_BAUD=115200       # 波特率和飞控串口配置统一
+CONFIG_USART1_RXBUFSIZE=2048    # 扩大缓冲区，适配固件加载通信
+CONFIG_USART1_TXBUFSIZE=2048
+# 3. 开启Flash读写支持（Bootloader核心功能：存储/加载PX4固件）
+CONFIG_STM32H7_FLASH=y
+CONFIG_STM32H7_FLASH_OVERRIDE_I=y
+# 4. 关闭冗余功能，减小Bootloader体积
+CONFIG_NSH_DISABLE_ALL=y
+CONFIG_FS_DISABLE_ALL=y
+# 5. 适配STM32H743主频，保证Bootloader时序稳定
+CONFIG_STM32H7_CLOCK_MPU=480000000
+CONFIG_STM32H7_CLOCK_SYSTEM=480000000
+# -------------------------------------------------------------------------------------
