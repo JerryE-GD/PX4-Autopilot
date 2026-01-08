@@ -39,9 +39,8 @@
 
 #include "board_config.h"
 #include "bl.h"
-#include "hw_config.h"  // 保留硬件配置（无冲突）
-// 移除init.c引入（解决led_on函数冲突）
-#include <stdint.h>     // 保留基础类型定义
+#include "hw_config.h"
+#include <stdint.h>
 #include <nuttx/config.h>
 #include <nuttx/board.h>
 #include <chip.h>
@@ -50,10 +49,10 @@
 #include "arm_internal.h"
 #include <px4_platform_common/init.h>
 
-// 新增：适配链接脚本的Flash地址（关键！和script.ld完全匹配）
-#define BOOTLOADER_BASE    0x08000000  // Bootloader起始地址
-#define APPLICATION_BASE   0x08020000  // PX4固件起始地址（Bootloader后128KB）
-#define APPLICATION_SIZE   0x1E0000    // PX4固件最大长度（1920KB）
+// 删除重复的宏定义（工程中已有APPLICATION_BASE等宏，避免冲突）
+// #define BOOTLOADER_BASE    0x08000000
+// #define APPLICATION_BASE   0x08020000
+// #define APPLICATION_SIZE   0x1E0000
 
 // 新增：前置声明（外设检测+FLASH操作）
 uint8_t SD_Card_Detect(void);
@@ -83,7 +82,7 @@ __EXPORT int board_app_initialize(uintptr_t arg)
 
     // 固件升级逻辑
     if (usb_connected || sd_present) {
-        // 擦除应用程序区域（适配新的APPLICATION_BASE/SIZE）
+        // 擦除应用程序区域（使用工程已有的APPLICATION_BASE宏）
         if (FLASH_Erase_App_Area()) {
             uint8_t firmware_buf[1024] = {0};
             uint32_t firmware_len = 0;
@@ -95,14 +94,14 @@ __EXPORT int board_app_initialize(uintptr_t arg)
                 // firmware_len = SD_Read_Firmware(0x00, firmware_buf, sizeof(firmware_buf));
             }
 
-            // 写入固件到FLASH（适配APPLICATION_BASE）
+            // 写入固件到FLASH（使用工程已有的APPLICATION_BASE宏）
             if (firmware_len > 0) {
                 FLASH_Write_Firmware(APPLICATION_BASE, firmware_buf, firmware_len);
             }
         }
     }
 
-    // 跳转到PX4应用程序（STM32标准流程，适配新地址）
+    // 跳转到PX4应用程序（STM32标准流程，使用工程已有的APPLICATION_BASE宏）
     if (((*(__IO uint32_t*)APPLICATION_BASE) & 0x2FFE0000) == 0x20000000) {
         JumpToApplication = (pFunction)(*(__IO uint32_t*)(APPLICATION_BASE + 4));
         __set_MSP(*(__IO uint32_t*)APPLICATION_BASE);  // 设置栈指针
