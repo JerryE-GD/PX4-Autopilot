@@ -243,3 +243,18 @@ CONFIG_USBDEV_BUSPOWERED=y
 CONFIG_USBDEV_MAXPOWER=500
 CONFIG_USEC_PER_TICK=1000
 CONFIG_WATCHDOG=y
+# -------------------------- 阶段四增量添加：NuttX引导适配配置 --------------------------
+# 1. 开启USART1作为系统控制台（匹配我们init.c中的serial1_init）
+CONFIG_UART1_SERIAL_CONSOLE=y
+# 2. 调整USART1/2缓冲区大小，适配飞控通信需求（覆盖原有600/1500）
+CONFIG_USART1_RXBUFSIZE=2048
+CONFIG_USART1_TXBUFSIZE=2048
+CONFIG_USART2_RXBUFSIZE=1024
+CONFIG_USART2_TXBUFSIZE=1024
+# 3. 开启Bootloader固件加载支持
+CONFIG_BOOTLOADER=y
+CONFIG_BOOTLOADER_SIZE=0x20000  # 128KB Flash空间分配给Bootloader
+# 4. 开启硬件时钟校准，匹配STM32H743主频（保证系统时序稳定）
+CONFIG_STM32H7_CLOCK_MPU=480000000
+CONFIG_STM32H7_CLOCK_SYSTEM=480000000
+# -------------------------------------------------------------------------------------
