@@ -52,6 +52,9 @@
 // 新增：定义STM32标准的__IO宏（解决未定义报错，等价于volatile）
 #define __IO volatile
 
+// 新增：声明ARM Cortex-M7内核函数__set_MSP（设置主栈指针）
+void __set_MSP(uint32_t msp);
+
 // 新增：前置声明（外设检测+FLASH操作）
 uint8_t SD_Card_Detect(void);
 uint8_t USB_Device_Detect(void);
