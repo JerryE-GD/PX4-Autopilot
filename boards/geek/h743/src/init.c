@@ -59,9 +59,7 @@
 #  include <parameters/flashparams/flashfs.h>
 #endif
 
-// -------------------------- 增量添加：串口相关头文件 --------------------------
-#include "stm32h7xx_hal.h"
-#include "hw_config.h"
+
 // -----------------------------------------------------------------------------
 
 __BEGIN_DECLS
@@ -111,16 +109,17 @@ void HW_Init(void)
     // ===========================================================================
 }
 
-// -------------------------- 增量添加：串口初始化函数 --------------------------
+// -------------------------- 增量添加：串口初始化函数（修复后） --------------------------
 /**
  * @brief 串口1（USART1）初始化：系统控制台，115200 8N1
  */
 static void serial1_init(void)
 {
-    // 复用PX4原生GPIO配置逻辑，避免冲突
-    px4_gpio_init(GPIO_PIN_9 | GPIO_PIN_10, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH, GPIO_AF7_USART1);
-    // 配置串口参数（复用PX4原生串口驱动）
-    stm32_uart_configure(1, 115200, 8, false, false);
+    // 修复点1：改用PX4原生GPIO配置接口（替换原px4_gpio_init）
+    px4_arch_configgpio(GPIO_USART1_TX);
+    px4_arch_configgpio(GPIO_USART1_RX);
+    // 修复点2：改用PX4原生串口波特率配置接口（替换原stm32_uart_configure）
+    px4_arch_uart_set_baud(1, 115200);
 }
 
 /**
@@ -128,10 +127,11 @@ static void serial1_init(void)
  */
 static void serial2_init(void)
 {
-    // 复用PX4原生GPIO配置逻辑，避免冲突
-    px4_gpio_init(GPIO_PIN_2 | GPIO_PIN_3, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH, GPIO_AF7_USART2);
-    // 配置串口参数（复用PX4原生串口驱动）
-    stm32_uart_configure(2, 9600, 8, false, false);
+    // 修复点1：改用PX4原生GPIO配置接口（替换原px4_gpio_init）
+    px4_arch_configgpio(GPIO_USART2_TX);
+    px4_arch_configgpio(GPIO_USART2_RX);
+    // 修复点2：改用PX4原生串口波特率配置接口（替换原stm32_uart_configure）
+    px4_arch_uart_set_baud(2, 9600);
 }
 // -----------------------------------------------------------------------------
 
