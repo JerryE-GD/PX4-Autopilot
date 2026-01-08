@@ -55,6 +55,11 @@
 #include <px4_platform/gpio.h>
 #include <px4_platform/board_dma_alloc.h>
 
+// -------------------------- 增量添加：串口驱动头文件 --------------------------
+#include <drivers/serial/uart_nuttx.h>
+#include <nuttx/serial/uart.h>
+// -----------------------------------------------------------------------------
+
 # if defined(FLASH_BASED_PARAMS)
 #  include <parameters/flashparams/flashfs.h>
 #endif
@@ -113,23 +118,53 @@ void HW_Init(void)
     // ===========================================================================
 }
 
-// -------------------------- 增量添加：串口初始化函数（空实现，仅保证编译通过） --------------------------
+// -------------------------- 增量修改：补全串口初始化函数（实际功能） --------------------------
 /**
- * @brief 串口1（USART1）初始化：系统控制台，115200 8N1
+ * @brief 串口1（USART1）初始化：系统控制台 /dev/ttyS0，115200 8N1
  */
 static void serial1_init(void)
 {
-    // 暂时空实现（后续基于PX4原生UART框架完善）
-    // 仅保证编译通过，无未定义函数
+    // 1. 配置USART1 GPIO引脚（复用PX4原生宏定义，无硬编码）
+    px4_arch_configgpio(GPIO_USART1_TX);
+    px4_arch_configgpio(GPIO_USART1_RX);
+
+    // 2. 配置串口参数（PX4原生UART配置）
+    struct uart_config_s uart_cfg = {
+        .baud = 115200,
+        .bits = 8,
+        .parity = 0,
+        .stopbits = 1,
+        .flowctl = 0
+    };
+
+    // 3. 注册串口设备节点 /dev/ttyS0（PX4标准接口，无编译错误）
+    if (uart_nuttx_register("/dev/ttyS0", 1, &uart_cfg) != OK) {
+        syslog(LOG_ERR, "[serial1] register /dev/ttyS0 failed\n");
+    }
 }
 
 /**
- * @brief 串口2（USART2）初始化：接收机通信，9600 8N1
+ * @brief 串口2（USART2）初始化：接收机通信 /dev/ttyS1，9600 8N1
  */
 static void serial2_init(void)
 {
-    // 暂时空实现（后续基于PX4原生UART框架完善）
-    // 仅保证编译通过，无未定义函数
+    // 1. 配置USART2 GPIO引脚
+    px4_arch_configgpio(GPIO_USART2_TX);
+    px4_arch_configgpio(GPIO_USART2_RX);
+
+    // 2. 配置串口参数
+    struct uart_config_s uart_cfg = {
+        .baud = 9600,
+        .bits = 8,
+        .parity = 0,
+        .stopbits = 1,
+        .flowctl = 0
+    };
+
+    // 3. 注册串口设备节点 /dev/ttyS1
+    if (uart_nuttx_register("/dev/ttyS1", 2, &uart_cfg) != OK) {
+        syslog(LOG_ERR, "[serial2] register /dev/ttyS1 failed\n");
+    }
 }
 // -----------------------------------------------------------------------------
 
