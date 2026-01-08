@@ -50,6 +50,11 @@
 #include "arm_internal.h"
 #include <px4_platform_common/init.h>
 
+// 新增：适配链接脚本的Flash地址（关键！和script.ld完全匹配）
+#define BOOTLOADER_BASE    0x08000000  // Bootloader起始地址
+#define APPLICATION_BASE   0x08020000  // PX4固件起始地址（Bootloader后128KB）
+#define APPLICATION_SIZE   0x1E0000    // PX4固件最大长度（1920KB）
+
 // 新增：前置声明（外设检测+FLASH操作）
 uint8_t SD_Card_Detect(void);
 uint8_t USB_Device_Detect(void);
@@ -78,7 +83,7 @@ __EXPORT int board_app_initialize(uintptr_t arg)
 
     // 固件升级逻辑
     if (usb_connected || sd_present) {
-        // 擦除应用程序区域
+        // 擦除应用程序区域（适配新的APPLICATION_BASE/SIZE）
         if (FLASH_Erase_App_Area()) {
             uint8_t firmware_buf[1024] = {0};
             uint32_t firmware_len = 0;
@@ -90,18 +95,18 @@ __EXPORT int board_app_initialize(uintptr_t arg)
                 // firmware_len = SD_Read_Firmware(0x00, firmware_buf, sizeof(firmware_buf));
             }
 
-            // 写入固件到FLASH
+            // 写入固件到FLASH（适配APPLICATION_BASE）
             if (firmware_len > 0) {
                 FLASH_Write_Firmware(APPLICATION_BASE, firmware_buf, firmware_len);
             }
         }
     }
 
-    // 跳转到PX4应用程序（STM32标准流程）
+    // 跳转到PX4应用程序（STM32标准流程，适配新地址）
     if (((*(__IO uint32_t*)APPLICATION_BASE) & 0x2FFE0000) == 0x20000000) {
         JumpToApplication = (pFunction)(*(__IO uint32_t*)(APPLICATION_BASE + 4));
-        __set_MSP(*(__IO uint32_t*)APPLICATION_BASE);
-        JumpToApplication();
+        __set_MSP(*(__IO uint32_t*)APPLICATION_BASE);  // 设置栈指针
+        JumpToApplication();                           // 跳转到PX4固件
     }
 
 	return 0;
