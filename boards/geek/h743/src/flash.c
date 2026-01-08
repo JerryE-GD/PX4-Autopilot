@@ -21,7 +21,7 @@ static bool firmware_written = false;
 
 // 模拟FLASH操作状态（供调试查看）
 //static bool flash_erased = false;
-static bool firmware_written = false;
+//static bool firmware_written = false;
 
 /**
  * @brief 模拟擦除应用程序区域FLASH（仅标记状态，无真实擦除）
