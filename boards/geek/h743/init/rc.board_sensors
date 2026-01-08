@@ -17,19 +17,26 @@ dps310 -I start -a 118
 
 ist8310 -I -R 2 start
 
-# -------------------------- 增量添加：串口通信配置 --------------------------
-# 串口1（/dev/ttyS0）：系统控制台，波特率115200
-# 加载串口驱动并配置参数
-if [ -c /dev/ttyS0 ]; then
-    stty -F /dev/ttyS0 115200 cs8 -cstopb -parenb
-    # 将控制台输出重定向到串口1
-    echo "Serial console initialized on /dev/ttyS0 (115200 8N1)" > /dev/ttyS0
+# -------------------------- 阶段四增量添加：串口通信配置（优化版） --------------------------
+# 适配STM32H743 USART1/2的设备节点（/dev/ttyACM0对应USART1，/dev/ttyACM1对应USART2）
+# 串口1（USART1）：系统控制台 + QGroundControl通信，波特率115200（和defconfig匹配）
+if [ -c /dev/ttyACM0 ]; then
+    # 配置串口参数：115200波特率、8位数据位、1位停止位、无校验（8N1）
+    stty -F /dev/ttyACM0 115200 cs8 -cstopb -parenb -ixon -ixoff
+    # 开启硬件流控（避免QGroundControl通信丢包）
+    stty -F /dev/ttyACM0 crtscts
+    # 将系统日志重定向到串口1，便于调试
+    exec > /dev/ttyACM0 2>&1
+    echo "[SUCCESS] Serial console (USART1) initialized: 115200 8N1"
 fi
 
-# 串口2（/dev/ttyS1）：接收机通信，波特率9600（适配SBUS/PPM）
-if [ -c /dev/ttyS1 ]; then
-    stty -F /dev/ttyS1 9600 cs8 -cstopb -parenb
-    # 启动接收机数据接收服务
-    rc_input -d /dev/ttyS1 start
-    echo "RC receiver initialized on /dev/ttyS1 (9600 8N1)" > /dev/ttyS0
+# 串口2（USART2）：接收机通信，波特率9600（适配SBUS/PPM）
+if [ -c /dev/ttyACM1 ]; then
+    stty -F /dev/ttyACM1 9600 cs8 -cstopb -parenb
+    # 启动PX4接收机数据服务（兼容主流RC协议）
+    if [ -x /bin/rc_input ]; then
+        rc_input -d /dev/ttyACM1 start
+        echo "[SUCCESS] RC receiver (USART2) initialized: 9600 8N1"
+    fi
 fi
+# -------------------------------------------------------------------------------------------
