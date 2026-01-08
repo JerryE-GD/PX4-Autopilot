@@ -54,7 +54,7 @@ uint8_t FLASH_Write_Firmware(uint32_t addr, uint8_t *buf, uint32_t len)
 
     // 模拟写入操作
     firmware_written = true;
-    printf("[Bootloader] 模拟写入固件成功：地址0x%08X，长度%lu字节\n", addr, len);
+    printf("[Bootloader] 模拟写入固件成功：地址0x%08lX，长度%lu字节\n", addr, len);
     return 1;
 }
 
