@@ -20,7 +20,7 @@ static bool firmware_written = false;
 
 
 // 模拟FLASH操作状态（供调试查看）
-static bool flash_erased = false;
+//static bool flash_erased = false;
 static bool firmware_written = false;
 
 /**
