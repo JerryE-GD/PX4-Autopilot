@@ -16,3 +16,20 @@ bmi270 -s -b 2 -R 0 start
 dps310 -I start -a 118
 
 ist8310 -I -R 2 start
+
+# -------------------------- 增量添加：串口通信配置 --------------------------
+# 串口1（/dev/ttyS0）：系统控制台，波特率115200
+# 加载串口驱动并配置参数
+if [ -c /dev/ttyS0 ]; then
+    stty -F /dev/ttyS0 115200 cs8 -cstopb -parenb
+    # 将控制台输出重定向到串口1
+    echo "Serial console initialized on /dev/ttyS0 (115200 8N1)" > /dev/ttyS0
+fi
+
+# 串口2（/dev/ttyS1）：接收机通信，波特率9600（适配SBUS/PPM）
+if [ -c /dev/ttyS1 ]; then
+    stty -F /dev/ttyS1 9600 cs8 -cstopb -parenb
+    # 启动接收机数据接收服务
+    rc_input -d /dev/ttyS1 start
+    echo "RC receiver initialized on /dev/ttyS1 (9600 8N1)" > /dev/ttyS0
+fi
