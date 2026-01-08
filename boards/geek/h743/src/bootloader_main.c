@@ -49,10 +49,8 @@
 #include "arm_internal.h"
 #include <px4_platform_common/init.h>
 
-// 删除重复的宏定义（工程中已有APPLICATION_BASE等宏，避免冲突）
-// #define BOOTLOADER_BASE    0x08000000
-// #define APPLICATION_BASE   0x08020000
-// #define APPLICATION_SIZE   0x1E0000
+// 新增：定义STM32标准的__IO宏（解决未定义报错，等价于volatile）
+#define __IO volatile
 
 // 新增：前置声明（外设检测+FLASH操作）
 uint8_t SD_Card_Detect(void);
