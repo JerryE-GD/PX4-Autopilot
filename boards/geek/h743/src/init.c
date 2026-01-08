@@ -59,6 +59,11 @@
 #  include <parameters/flashparams/flashfs.h>
 #endif
 
+// -------------------------- 增量添加：串口相关头文件 --------------------------
+#include "stm32h7xx_hal.h"
+#include "hw_config.h"
+// -----------------------------------------------------------------------------
+
 __BEGIN_DECLS
 extern void led_init(void);
 extern void led_on(int led);
@@ -100,8 +105,35 @@ void HW_Init(void)
     // 仅初始化USB和SDIO（原版已验证可编译的函数）
     USB_Init();
     SDIO_Init();
-    // ========== 新增：初始化调试串口（复用PX4原生USART1，不冲突） ==========
+    // ========== 增量添加：初始化调试串口（复用PX4原生USART1，不冲突） ==========
+    serial1_init(); // 新增：初始化系统控制台串口
+    serial2_init(); // 新增：初始化接收机通信串口
+    // ===========================================================================
 }
+
+// -------------------------- 增量添加：串口初始化函数 --------------------------
+/**
+ * @brief 串口1（USART1）初始化：系统控制台，115200 8N1
+ */
+static void serial1_init(void)
+{
+    // 复用PX4原生GPIO配置逻辑，避免冲突
+    px4_gpio_init(GPIO_PIN_9 | GPIO_PIN_10, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH, GPIO_AF7_USART1);
+    // 配置串口参数（复用PX4原生串口驱动）
+    stm32_uart_configure(1, 115200, 8, false, false);
+}
+
+/**
+ * @brief 串口2（USART2）初始化：接收机通信，9600 8N1
+ */
+static void serial2_init(void)
+{
+    // 复用PX4原生GPIO配置逻辑，避免冲突
+    px4_gpio_init(GPIO_PIN_2 | GPIO_PIN_3, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH, GPIO_AF7_USART2);
+    // 配置串口参数（复用PX4原生串口驱动）
+    stm32_uart_configure(2, 9600, 8, false, false);
+}
+// -----------------------------------------------------------------------------
 
 // **************************
 // PX4 原生函数（完全保留原版，一行未改）
