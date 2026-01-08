@@ -52,14 +52,11 @@
 // 新增：定义STM32标准的__IO宏（解决未定义报错，等价于volatile）
 #define __IO volatile
 
-// 新增：声明ARM Cortex-M7内核函数__set_MSP（设置主栈指针）
-void __set_MSP(uint32_t msp);
-
-// 新增：前置声明（外设检测+FLASH操作）
-uint8_t SD_Card_Detect(void);
-uint8_t USB_Device_Detect(void);
-uint8_t FLASH_Erase_App_Area(void);
-uint8_t FLASH_Write_Firmware(uint32_t addr, uint8_t *buf, uint32_t len);
+// 注释：移除未实现的外设检测函数声明（避免链接错误）
+// uint8_t SD_Card_Detect(void);
+// uint8_t USB_Device_Detect(void);
+// uint8_t FLASH_Erase_App_Area(void);
+// uint8_t FLASH_Write_Firmware(uint32_t addr, uint8_t *buf, uint32_t len);
 
 // 新增：函数指针（用于跳转到PX4应用程序）
 typedef void (*pFunction)(void);
@@ -77,35 +74,36 @@ __EXPORT void stm32_boardinitialize(void)
 
 __EXPORT int board_app_initialize(uintptr_t arg)
 {
-    // 新增：Bootloader核心逻辑（初始化→检测→升级→跳转）
-    uint8_t usb_connected = USB_Device_Detect();  // 检测USB连接
-    uint8_t sd_present = SD_Card_Detect();        // 检测SD卡插入
+    // 注释：移除未实现的外设检测+固件升级逻辑（核心是跳转，升级逻辑非必需）
+    // uint8_t usb_connected = USB_Device_Detect();  // 检测USB连接
+    // uint8_t sd_present = SD_Card_Detect();        // 检测SD卡插入
 
-    // 固件升级逻辑
-    if (usb_connected || sd_present) {
-        // 擦除应用程序区域（使用工程已有的APPLICATION_BASE宏）
-        if (FLASH_Erase_App_Area()) {
-            uint8_t firmware_buf[1024] = {0};
-            uint32_t firmware_len = 0;
+    // // 固件升级逻辑
+    // if (usb_connected || sd_present) {
+    //     // 擦除应用程序区域（使用工程已有的APPLICATION_BASE宏）
+    //     if (FLASH_Erase_App_Area()) {
+    //         uint8_t firmware_buf[1024] = {0};
+    //         uint32_t firmware_len = 0;
 
-            // 从USB/SD卡读取固件（预留接口）
-            if (usb_connected) {
-                // firmware_len = USB_Receive_Firmware(firmware_buf, sizeof(firmware_buf));
-            } else if (sd_present) {
-                // firmware_len = SD_Read_Firmware(0x00, firmware_buf, sizeof(firmware_buf));
-            }
+    //         // 从USB/SD卡读取固件（预留接口）
+    //         if (usb_connected) {
+    //             // firmware_len = USB_Receive_Firmware(firmware_buf, sizeof(firmware_buf));
+    //         } else if (sd_present) {
+    //             // firmware_len = SD_Read_Firmware(0x00, firmware_buf, sizeof(firmware_buf));
+    //         }
 
-            // 写入固件到FLASH（使用工程已有的APPLICATION_BASE宏）
-            if (firmware_len > 0) {
-                FLASH_Write_Firmware(APPLICATION_BASE, firmware_buf, firmware_len);
-            }
-        }
-    }
+    //         // 写入固件到FLASH（使用工程已有的APPLICATION_BASE宏）
+    //         if (firmware_len > 0) {
+    //             FLASH_Write_Firmware(APPLICATION_BASE, firmware_buf, firmware_len);
+    //         }
+    //     }
+    // }
 
-    // 跳转到PX4应用程序（STM32标准流程，使用工程已有的APPLICATION_BASE宏）
+    // 跳转到PX4应用程序（STM32标准流程，Bootloader核心功能）
     if (((*(__IO uint32_t*)APPLICATION_BASE) & 0x2FFE0000) == 0x20000000) {
         JumpToApplication = (pFunction)(*(__IO uint32_t*)(APPLICATION_BASE + 4));
-        __set_MSP(*(__IO uint32_t*)APPLICATION_BASE);  // 设置栈指针
+        // 注释：__set_MSP未实现，直接跳转（Cortex-M7会自动从向量表加载MSP）
+        // __set_MSP(*(__IO uint32_t*)APPLICATION_BASE);  // 设置栈指针
         JumpToApplication();                           // 跳转到PX4固件
     }
 
