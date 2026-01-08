@@ -110,7 +110,12 @@
 MEMORY
 {
 	itcm  (rwx) : ORIGIN = 0x00000000, LENGTH =   64K
-	flash (rx)  : ORIGIN = 0x08000000, LENGTH = 2048K
+	/* -------------------------- 增量修改：拆分Flash地址空间 -------------------------- */
+	/* 为Bootloader分配128KB (0x20000) Flash：0x08000000 - 0x08020000 */
+	bootloader_flash (rx) : ORIGIN = 0x08000000, LENGTH = 0x20000
+	/* PX4固件地址后移128KB：0x08020000 - 0x08200000 (剩余2048K-128K=1920K) */
+	flash (rx)  : ORIGIN = 0x08020000, LENGTH = 1920K
+	/* -------------------------------------------------------------------------------- */
 	dtcm1 (rwx) : ORIGIN = 0x20000000, LENGTH =   64K
 	dtcm2 (rwx) : ORIGIN = 0x20010000, LENGTH =   64K
 	sram  (rwx) : ORIGIN = 0x24000000, LENGTH =  512K
@@ -134,6 +139,15 @@ EXTERN(_bootdelay_signature)
 
 SECTIONS
 {
+	/* -------------------------- 增量添加：Bootloader代码段 -------------------------- */
+	.bootloader_text : {
+		_bootloader_start = ABSOLUTE(.);
+		*(.bootloader.text .bootloader.text.*)  /* Bootloader专属代码段 */
+		*(.bootloader.rodata .bootloader.rodata.*) /* Bootloader只读数据 */
+		_bootloader_end = ABSOLUTE(.);
+	} > bootloader_flash  /* 链接到Bootloader专属Flash空间 */
+	/* -------------------------------------------------------------------------------- */
+
 	.text : {
 		_stext = ABSOLUTE(.);
 		*(.vectors)
