@@ -68,6 +68,10 @@ extern void led_on(int led);
 extern void led_off(int led);
 __END_DECLS
 
+// -------------------------- 增量添加：串口函数提前声明 --------------------------
+static void serial1_init(void);
+static void serial2_init(void);
+
 // **************************
 // Bootloader 新增函数（完全复用PX4原版已验证逻辑，无自定义函数调用）
 // **************************
